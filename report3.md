@@ -8,7 +8,7 @@
 | 제2부 | 과제2 | 요구사항 작성 | 기능 요구사항 FR-01~19, 비기능 요구사항 NFR-01~07, 검증 방법 |
 | 제3부 | 과제3 | 설계 | 아키텍처 모델(계층·MVC·파이프-필터), DFD·구조도, UML, 토픽 인터페이스, 유닛 5개 상세 설계 |
 
-**문서 연결 흐름:** 과제1에서 정한 범위와 시스템 문맥도(그림 1)를 바탕으로 과제2에서 요구사항을 ID로 정의했고, 과제3에서는 그 요구사항을 구성요소와 유닛에 배정했다. 요구사항 ID가 설계 요소와 시험 항목에 어떻게 연결되는지는 제3부 2.7절의 추적표에 정리했다.
+**문서 연결 흐름:** 과제1에서 정한 범위와 시스템 문맥도(그림 1)를 바탕으로 과제2에서 요구사항을 ID로 정의했고, 과제3에서는 그 요구사항을 구성요소와 유닛에 배정했다. 요구사항 ID가 설계 요소와 시험 항목에 어떻게 연결되는지는 제3부 2.6절의 추적표에 정리했다.
 
 # 제1부. 프로젝트 관리 [과제1]
 
@@ -213,9 +213,9 @@ ROS 2 노드 구조는 같은 기능을 구현하는 방식의 차이이므로 �
 | 3.2 | 지형 지도(DEM 전처리 포함) 및 비용 모델 | 1.0 | 예정 | 유닛 U1 |
 | 3.3 | A\* 경로 계획 및 재계획 | 0.75 | 예정 | 유닛 U2 |
 | 3.4 | 순찰·임무 관리 | 0.75 | 예정 | 유닛 U3~U5 |
-| 3.5 | ROS 2 노드 구성 및 토픽 인터페이스 | 0.75 | 예정 | 3부 2.5절 |
-| 3.6 | 시뮬레이션 노드 (인식·배터리·UGV 구동부) | 0.75 | 예정 | 3부 2.5절 |
-| 3.7 | 시각화 (OpenCV, RViz2) | 1.0 | 예정 | 3부 2.2절 MVC |
+| 3.5 | ROS 2 노드 구성 및 토픽 인터페이스 | 0.75 | 예정 | 3부 2.4절 |
+| 3.6 | 시뮬레이션 노드 (인식·배터리·UGV 구동부) | 0.75 | 예정 | 3부 2.4절 |
+| 3.7 | 시각화 (OpenCV, RViz2) | 1.0 | 예정 | 3부 2.1절 MVC |
 | **4** | **시험** | **1.0** | | |
 | 4.1 | 단위 시험 (pytest) | 0.5 | 예정 | 3부 3장 시험 항목 |
 | 4.2 | 상황별 시나리오 시험 | 0.5 | 예정 | 2부 4.2절 |
@@ -327,785 +327,348 @@ ROS 2 노드 구조는 같은 기능을 구현하는 방식의 차이이므로 �
 
 # 제3부. 설계 [과제3]
 
-제2부에서 정의한 요구사항(FR-01~19, NFR-01~07)을 바탕으로 제어기의 구조와 구현 단위를 설계한다. 1장에서 설계와 아키텍처 설계의 의미를 정리하고, 2장에서 수업에서 학습한 아키텍처 모델과 설계 방법(구조적 설계, 객체지향 설계)을 적용해 전체 구조를 구성한다. 3장에서는 구현할 핵심 유닛 5개의 내부를 상세 설계한다.
+제2부의 요구사항(FR-01~19, NFR-01~07)을 구현할 수 있는 구조로 바꾼다. 1장에서 아키텍처 설계의 의미를, 2장에서 수업에서 학습한 Method를 적용한 아키텍처 구성을, 3장에서 핵심 유닛 5개의 상세 설계를 기술한다.
 
 ## 1. 아키텍처 설계란?
 
-### 1.1 소프트웨어 설계
+소프트웨어 설계는 요구사항 명세서(SRS)에 적힌 "무엇을(What)"을 구현할 수 있는 "어떻게(How)"로 바꾸는 과정이며, 관심을 문제 영역(problem domain)에서 해결 영역(solution domain)으로 옮기는 첫 단계이다. 설계는 시스템 전체 구조를 정하는 **상위 설계**(아키텍처·데이터·UI 설계)와 모듈 내부의 알고리즘·인터페이스·자료구조를 정하는 **하위 설계**(상세 설계)로 나뉜다. 본 문서에서는 2장이 상위 설계, 3장이 하위 설계에 해당한다.
 
-소프트웨어 설계는 요구사항 명세서(SRS)에 적힌 사용자 요구사항을 프로그래머가 바로 구현할 수 있는 형태로 바꾸는 과정이다. 요구사항이 "무엇을(What)" 할지를 정했다면, 설계는 그것을 "어떻게(How)" 만족시킬지를 정한다. 즉 관심을 문제 영역(problem domain)에서 해결 영역(solution domain)으로 옮기는 첫 단계이며, 설계 산출물은 곧바로 구현에 사용된다.
+**아키텍처**는 ① 구성요소, ② 구성요소 사이의 관계, ③ 구성요소와 주변 환경의 관계, ④ 구성요소들이 협력하고 조립되는 방법을 정의한 것이다. 아키텍처 설계는 세부 구현보다, 시스템을 어떤 서브시스템으로 나누고 이들이 어떤 인터페이스로 상호작용할지를 정한다.
 
-설계는 다루는 수준에 따라 상위 설계와 하위 설계로 나뉜다.
+아키텍처 설계가 중요한 이유는 설계 단계에서 소프트웨어 품질이 결정되기 때문이다. 본 제어기의 재계획 시간(NFR-01), 설정값 분리(NFR-05), ROS 2 노드 분리(NFR-06) 같은 비기능 요구사항은 함수 하나가 아니라 구성요소를 나누고 연결하는 방식으로 만족된다. 검증된 아키텍처 모델을 사용하면 개발자 간 의사소통과 유지보수도 쉬워진다.
 
-| 구분 | 내용 | 본 문서의 해당 부분 |
-|---|---|---|
-| 상위 설계 (예비 설계) | **아키텍처 설계:** 시스템을 여러 서브시스템으로 나누어 전체 구조를 정함<br>**데이터 설계:** 필요한 정보를 자료구조에 반영<br>**UI 설계:** 사용자가 편리하게 쓸 수 있는 인터페이스 | 2장 아키텍처 설계 구성 (노드·계층 구조, 토픽 인터페이스, 지도 자료구조, 관제 화면 분리) |
-| 하위 설계 (상세 설계) | 각 모듈 내부를 알고리즘(의사코드)으로 표현하고, 인터페이스·자료구조·변수를 상세히 기술 | 3장 상세 설계 (유닛 5개) |
+본 설계에 적용한 설계 원칙은 다음과 같다.
 
-### 1.2 아키텍처 설계
-
-아키텍처는 ① 구성요소, ② 구성요소 사이의 관계, ③ 구성요소와 주변 환경 사이의 관계, ④ 구성요소들이 협력하고 조립되는 방법을 정의한 것이다. 소프트웨어 아키텍처 설계는 개발할 소프트웨어의 전체 구조를 정하는 작업으로, 다음을 다룬다.
-
-- 소프트웨어를 이루는 구성요소(서브시스템)가 무엇인지
-- 구성요소들이 인터페이스를 통해 어떻게 상호작용하는지
-- 세부 구현보다는 시스템 전체 품질에 영향을 주는 중요한 결정
-
-아키텍처 설계가 중요한 이유는 설계가 "소프트웨어 품질이 만들어지는 곳"이기 때문이다. 본 제어기에서도 성능(NFR-01, 0.5초 재계획), 유지보수성(NFR-05, 설정 파일 분리), 제약사항(NFR-06, ROS 2 노드 분리) 같은 비기능 요구사항은 개별 함수가 아니라 구성요소를 어떻게 나누고 연결하느냐에 따라 만족 여부가 결정된다. 또한 검증된 아키텍처 모델(스타일)을 사용하면 개발 기간이 줄고, 개발자 간 의사소통과 유지보수가 쉬워지며, 구축 전에 시스템 특성을 시뮬레이션해 볼 수 있다.
-
-### 1.3 본 설계에 적용한 설계 원칙
-
-| 설계 개념 | 의미 | 본 설계 적용 |
-|---|---|---|
-| 추상화 | 목적에 필요한 핵심 정보만 남기고 세부는 생략 | UGV를 칸 하나를 차지하는 점으로, 지형을 칸별 고도 격자로 단순화 (1부 2.3 범위 제외 사항과 일치) |
-| 단계적 분해 | 기능을 점점 작은 단위로 나누어 구체화 (하향식) | 문맥도(DFD Level 0) → DFD Level 1 → 구조도 → 유닛 순으로 분해 (2.3절) |
-| 모듈화 | 독립적인 기능을 가진 단위로 시스템을 구성 | ROS 2 노드 5개(제어기 1, 시뮬레이션 3, 표시 1)와 제어기 내부 유닛 5개로 분리 |
-| 정보 은닉 | 설계 결정을 다른 부분에 숨겨 의도치 않은 결합을 막음 | 이동 비용 공식은 TerrainMap 안에만, 상태 전환 규칙은 MissionManager 안에만 둠. ROS 2 의존 코드는 인터페이스 계층에만 둠 |
-
-수업에서 제시한 좋은 설계의 조건(요구사항을 모두 포함, 추적 가능, 변화에 쉽게 적응, 변경 영향의 국지화, 읽고 이해하기 쉬움)은 2.6절(응집도·결합도)과 2.7절(요구사항 추적표)에서 점검한다.
+- **추상화:** UGV는 칸 하나를 차지하는 점으로, 지형은 칸별 고도 격자로 단순화한다.
+- **단계적 분해:** 문맥도 → DFD Level 1 → 구조도 → 유닛 순으로 하향식 분해한다.
+- **모듈화:** ROS 2 노드 5개(제어기, 시뮬레이션 3개, 표시)와 제어기 내부 유닛 5개로 나눈다.
+- **정보 은닉:** 이동 비용 공식은 TerrainMap에만, 상태 전환 규칙은 MissionManager에만, ROS 2 의존 코드는 인터페이스 계층에만 둔다.
 
 ## 2. 아키텍처 설계 구성
 
-### 2.1 설계 절차
+수업에서 학습한 Method를 ① 아키텍처 모델 선정 → ② 구조적 설계(DFD·구조도) → ③ 객체지향 설계(UML) → ④ 인터페이스 정의 → ⑤ 응집도·결합도 평가 → ⑥ 요구사항 추적 순서로 적용했다.
 
-수업에서 학습한 아키텍처 구축 절차와 설계 방법(Method)을 다음 순서로 적용했다.
+### 2.1 아키텍처 모델 선정
 
-| 단계 | 활동 | 적용 Method | 산출물 |
-|---|---|---|---|
-| ① | 요구사항·문맥 분석 | 시스템 문맥도 (과제1) | 그림 1, 제2부 FR/NFR |
-| ② | 아키텍처 모델 선정 | 아키텍처 모델 (데이터 중심형, 클라이언트-서버, 계층, MVC, 파이프-필터) | 2.2절, 그림 2·3 |
-| ③ | 기능 분해 | 구조적 설계 (DFD → 구조도) | 2.3절, 그림 4·5 |
-| ④ | 객체 모델링 | 객체지향 설계 (유스케이스·클래스·순차·상태 다이어그램) | 2.4절, 그림 6~9 |
-| ⑤ | 인터페이스 정의 | 노드·토픽 인터페이스 설계 | 2.5절 |
-| ⑥ | 설계 품질 평가 | 응집도(Cohesion)·결합도(Coupling) | 2.6절 |
-| ⑦ | 추적성 확인 | 요구사항 추적표 | 2.7절 |
+| 모델 | 본 시스템 적합성 | 적용 |
+|---|---|---|
+| 데이터 중심형 | 지형 지도를 여러 모듈이 읽지만, 대량 데이터를 공유하는 DB 시스템은 아님 | 부분 적용 (TerrainMap 공유) |
+| 클라이언트-서버 | 한 PC에서 실행되고, 통신이 요청-응답이 아닌 주기적 데이터 흐름(토픽)임 | 미적용 |
+| 계층 | UGV 계획 구조(임무 관리 → 경로 계획 → 지형 모델)가 본래 계층 구조임 | **주 구조 (제어기 내부)** |
+| MVC | 같은 데이터를 OpenCV와 RViz2 두 화면에 표시해야 함 | **적용 (관제 화면)** |
+| 파이프-필터 | DEM 원본을 N×N 격자로 바꾸는 전처리가 순차 변환 과정임 | **적용 (지도 전처리)** |
 
-### 2.2 아키텍처 모델 선정
+**(1) 계층 모델 — 제어기 내부.** 제어기를 L1 지형 모델(TerrainMap, Config), L2 경로 계획(AStarPlanner), L3 임무 관리(MissionManager, PatrolScheduler, EnergyMonitor), L4 인터페이스(PatrolControllerNode)로 나눈다(그림 2 왼쪽). 상위 계층만 하위 계층을 호출하므로 아래 계층부터 독립적으로 구현·시험할 수 있다.
 
-수업에서 학습한 다섯 가지 아키텍처 모델을 본 시스템의 특성에 비추어 비교했다.
+- ROS 2 의존 코드는 L4에만 있어, L1~L3은 ROS 2 없이 pytest로 시험할 수 있다.
+- 과제1 위험 3(ROS 2 구축 지연)이 생기면 L4만 자체 메시지 버스로 바꾸면 되고, A\* → D\* Lite 교체는 L2만 바뀐다(변경 영향의 국지화).
 
-| 모델 | 특징 | 본 시스템 적합성 | 적용 |
-|---|---|---|---|
-| 데이터 중심형 (Repository) | 중앙 저장소의 데이터를 여러 서브시스템이 공유 | 지형·장애물 지도를 여러 모듈이 읽지만, 은행 업무처럼 대량 데이터를 공유하는 DB 시스템은 아님 | 부분 적용 (TerrainMap을 제어기 내부 공유 데이터로 사용) |
-| 클라이언트-서버 | 네트워크 분산 시스템에서 서버가 클라이언트에 서비스 제공 | 한 PC에서 실행되고, 노드 간 통신은 요청-응답이 아니라 주기적인 데이터 흐름(토픽) | 미적용 |
-| 계층 (Layering) | 기능을 계층으로 나누고 하위 계층이 상위 계층에 서비스를 제공 | 자율주행 UGV의 계획 구조(임무 관리 → 경로 계획 → 지형 모델)가 본래 계층 구조임 | **주 구조 (제어기 내부)** |
-| MVC | 모델과 뷰·제어를 분리해 UI 변경이 모델에 영향을 주지 않게 함 | 관제 화면을 OpenCV와 RViz2 두 가지로 표시해야 함 (같은 모델, 여러 뷰) | **적용 (관제 화면 분리)** |
-| 파이프-필터 | 필터가 데이터 스트림을 변환하고 파이프로 연결 | DEM 원본을 N×N 격자로 바꾸는 전처리가 순차적인 변환 과정임 | **적용 (지도 전처리)** |
+**(2) MVC — 관제 화면.** Model은 제어기 L1~L3(지도, 경로, 임무 상태), View는 visualizer 노드(OpenCV, RViz2), Controller는 운용자 명령 토픽과 L4이다. View는 토픽만 구독하므로 화면을 바꿔도 제어기 코드는 바뀌지 않고, 별도 노드여서 화면 갱신이 경로 계획 속도에 영향을 주지 않는다(MVC의 속도 단점 보완).
 
-#### (1) 계층 모델: 제어기 내부 구조
-
-제어기 노드 내부를 4개 계층으로 나눈다. 상위 계층은 하위 계층의 기능을 호출하는 클라이언트이고, 하위 계층은 상위 계층에 서비스를 제공하는 서버 역할을 한다. 하위 계층은 상위 계층을 알지 못하므로 아래 계층부터 독립적으로 구현하고 시험할 수 있다. 그림 2는 노드 수준 구조(오른쪽)와 제어기 내부 계층 구조(왼쪽)를 함께 나타낸다.
+**(3) 파이프-필터 — 지도 전처리.** DEM 원본을 고도 배열로 바꾸는 과정은 실행 전 한 번 수행하는 도구(`tools/prepare_dem.py`)로 분리했다(그림 3). 각 필터는 배열 하나를 받아 하나를 내보내므로 따로 시험하거나 교체할 수 있고, 지도 크기는 리샘플링 필터의 N만 바꾸면 된다(NFR-05).
 
 ![전체 아키텍처](images/arch_overview.svg)
 
 *그림 2. 전체 아키텍처 — ROS 2 노드 구성과 제어기 내부 계층 구조*
 
-| 계층 | 구성 요소 | 책임 | 관련 요구사항 |
-|---|---|---|---|
-| L4 인터페이스 | PatrolControllerNode | ROS 2 토픽 구독·발행, 메시지 ↔ 내부 자료형 변환, 명령 형식 검사 | FR-16, NFR-04, NFR-06 |
-| L3 임무 관리 | MissionManager (U5), PatrolScheduler (U3), EnergyMonitor (U4) | 임무 상태 전환, 순찰 순서 결정, 기지 복귀 판단 | FR-06~10, FR-12~15 |
-| L2 경로 계획 | AStarPlanner (U2) | 최소 비용 경로 생성, 경로 유효성 검사 | FR-05, 06, 12, NFR-01, 02 |
-| L1 지형 모델 | TerrainMap (U1), Config | 격자 지도, 통행 가능 판정, 이동 비용, 설정값 | FR-01~04, 11, NFR-05 |
-
-이 구조로 얻는 효과는 다음과 같다.
-
-- ROS 2(rclpy)에 의존하는 코드는 L4에만 있다. L1~L3은 순수 Python이므로 ROS 2 없이 pytest로 단위 시험할 수 있다(시험평가 담당자의 관심사).
-- 과제1의 위험 3(ROS 2 환경 구축 지연)이 발생하면 L4만 자체 메시지 버스로 바꾸고 L1~L3은 그대로 쓴다.
-- 과제1 향후 확장의 "A\* → D\* Lite 교체"는 L2만, "Gazebo 연동"은 시뮬레이션 노드만 바꾸면 된다(변경 영향의 국지화).
-
-#### (2) MVC 모델: 관제 화면 분리
-
-| MVC 요소 | 본 시스템의 구성 요소 | 역할 |
-|---|---|---|
-| Model | 제어기의 L1~L3 (지형 지도, 경로, 임무 상태, 순찰 지점) | 데이터와 로직 처리. 화면 형식에 영향을 받지 않고 결과를 토픽으로 내보내기만 함 |
-| View | visualizer 노드 (OpenCV 창, RViz2 마커) | 모델이 발행한 토픽을 구독해 사용자에게 표시 |
-| Controller | 운용자 명령 토픽과 L4 인터페이스 계층 | 운용자 요청을 검사해 모델(MissionManager)에 전달하고 결과를 상태 토픽으로 돌려줌 |
-
-View는 토픽만 구독하므로 OpenCV 화면 구성을 바꾸거나 RViz2 표시를 추가해도 제어기 코드는 바뀌지 않는다. 또한 View가 별도 노드이므로 화면 갱신이 늦어져도 경로 계획 주기에는 영향을 주지 않는다. 이는 수업에서 다룬 MVC의 단점(속도가 중요한 시스템에 부적합)을 노드 분리로 보완한 것이다.
-
-#### (3) 파이프-필터 모델: 지도 전처리
-
 ![파이프-필터 구조](images/pipe_filter.svg)
 
 *그림 3. 지도 전처리의 파이프-필터 구조*
 
-공개 DEM(SRTM)을 제어기가 쓰는 N×N 고도 배열로 바꾸는 과정은 실행 전에 한 번 수행하는 오프라인 도구(`tools/prepare_dem.py`)로 분리한다. 각 필터는 배열 하나를 입력받아 변환한 배열 하나를 출력하므로 필터를 하나씩 시험하거나 교체할 수 있다. 예를 들어 지도 크기를 바꾸려면 리샘플링 필터의 설정값 N만 바꾸면 된다(NFR-05). 제어기는 결과 파일(.npy)만 읽으므로 DEM 형식이 바뀌어도 제어기 코드는 영향을 받지 않는다.
+### 2.2 구조적 설계 (DFD → 구조도)
 
-### 2.3 구조적 설계 (DFD → 구조도)
-
-구조적 설계는 시스템 문맥도를 정점으로 하여 자료 흐름도(DFD)를 하향식으로 상세화하고, 이를 모듈의 계층 구조(구조도)로 바꾸는 방법이다.
-
-#### (1) DFD Level 0
-
-과제1의 시스템 문맥도(그림 1)가 Level 0 DFD에 해당한다. 대상 시스템(제어기) 하나와 외부 개체 6개 사이의 데이터 흐름을 나타낸다.
-
-#### (2) DFD Level 1
-
-제어기를 처리(Process) 7개와 자료 저장소 2개로 분해했다. 자료 저장소 D1, D2는 과제1 기능점수 산정에서 식별한 내부 논리 파일(ILF: 장애물 지도, 순찰 지점 정보)과 대응한다. 외부 개체와 주고받는 흐름은 Level 0(그림 1)과 같아서, 두 수준의 입출력이 일치(균형)한다.
+과제1의 시스템 문맥도(그림 1)를 DFD Level 0으로 보고, 이를 처리 7개와 자료 저장소 2개로 분해했다(그림 4). D1(지형·장애물 지도)과 D2(순찰 지점 정보)는 과제1 기능점수 산정의 내부 논리 파일(ILF)과 대응하며, 외부 개체와 주고받는 흐름은 Level 0과 같다(균형). 이어 처리를 실행 순서에 따라 단계적으로 분해해 구조도로 나타냈다(그림 5). 구조도의 모듈은 2.3절 클래스의 메서드로 대응된다(예: 1.4 → `EnergyMonitor.update_return_map()`, 3.2 → `AStarPlanner.plan()`).
 
 ![DFD Level 1](images/dfd_level1.svg)
 
 *그림 4. 순찰 경로 계획 제어기 DFD Level 1*
 
-| 처리 | 입력 | 출력 | 요구사항 |
-|---|---|---|---|
-| P1 지형 지도 생성 | 칸별 고도, 설정 | 격자 지도 → D1 | FR-01, 02 |
-| P2 장애물 반영 | 장애물 위치 (인식 센서) | 장애물 갱신 → D1 | FR-11 |
-| P3 순찰 목표 선정 | 순찰 지점 등록·삭제, D2, 도착 알림 | 다음 목표 지점 → P6, 방문 시각 → D2 | FR-07, 09, 10 |
-| P4 경로 계획 | D1, 출발·목표 지점 | 경로 또는 "경로 없음" → P6 | FR-03~06, 12 |
-| P5 에너지 감시 | 배터리 잔량, 현재 위치, D1 | 복귀 요청 → P6 | FR-13, 14 |
-| P6 임무 관리 | 시작·정지 명령, 현재 위치, 경로, 새 장애물 (D1), 복귀 요청 | 다음 이동 칸, 임무 상태·경보, 현재 위치 → P5 | FR-06, 08, 12, 14~16 |
-| P7 상황 표시 | 상태·경로·위치 | 상황 지도 → 관제 화면 | FR-17 |
-
-#### (3) 구조도 (Structure Chart)
-
-DFD의 처리를 실행 순서에 따라 단계적으로 분해해 모듈 계층 구조로 나타냈다. 최상위 모듈은 초기화 → 입력 처리 → 임무 관리 → 출력 처리를 차례로 호출한다.
-
 ![구조도](images/structure_chart.svg)
 
 *그림 5. 순찰 경로 계획 제어기 구조도*
 
-구조도의 각 모듈은 2.4절 클래스의 메서드로 대응된다. 1.2~1.3은 `TerrainMap.from_file()`, 1.4는 `EnergyMonitor.update_return_map()`, 2.x는 `PatrolControllerNode`의 구독 콜백, 3.1은 `PatrolScheduler.select_next()`, 3.2~3.3은 `AStarPlanner.plan()`·`is_path_valid()`, 3.4는 `EnergyMonitor.should_return()`, 3.5와 4.x는 `MissionManager`가 만든 출력을 `PatrolControllerNode`가 발행하는 부분이다.
+### 2.3 객체지향 설계 (UML)
 
-### 2.4 객체지향 설계 (UML)
+기능 모델 → 구조 모델 → 행위 모델 순서로 작성했다.
 
-객체지향 설계는 실세계의 대상을 객체로 모델링하고, 객체 간 메시지 전달로 기능을 구현하는 방법이다. 본 시스템의 객체(지형 지도, 순찰 지점, 경로 계획기, 임무 관리자 등)는 실제 UGV 운용 개념과 1:1로 대응한다. 기능 모델(유스케이스) → 구조 모델(클래스) → 행위 모델(순차·상태) 순서로 작성했다.
-
-#### (1) 유스케이스 다이어그램 (기능 모델)
+- **유스케이스 (그림 6):** UC-03 순찰 수행은 UC-04 경로 계획을 항상 포함(include)하고, 장애물 발견·배터리 부족 조건에서만 UC-05, UC-06으로 확장(extend)된다.
+- **클래스 (그림 7):** 핵심 클래스 5개가 3장의 유닛 U1~U5이며, 연관은 모두 상위 계층 → 하위 계층 방향이다. Config는 읽기 전용으로 각 클래스 생성 시 전달된다.
+- **순차 (그림 8):** 가장 많은 객체가 참여하는 장애물 재계획(UC-05) 흐름이다. 경로가 막히면 상태를 "재계획 중"으로 바꾸고 현재 위치에서 다시 계획한다.
+- **상태 기계 (그림 9):** FR-15의 임무 상태 5개와 전환 조건이다. UGV가 움직이는 세 상태는 상위 상태 "운행 중"으로 묶어, 어느 상태에서든 정지 명령을 받을 수 있게 했다.
 
 ![유스케이스 다이어그램](images/usecase.svg)
 
 *그림 6. 유스케이스 다이어그램*
 
-| ID | 유스케이스 | 액터 | 설명 | 관련 요구사항 |
-|---|---|---|---|---|
-| UC-01 | 순찰 지점 관리 | 순찰 운용자 | 순찰 지점을 등록·삭제한다. | FR-07 |
-| UC-02 | 임무 시작·정지 | 순찰 운용자 | 순찰 임무를 시작하거나 정지하고 임무 상태를 받는다. | FR-08, 15 |
-| UC-03 | 순찰 수행 | UGV 구동부 | 다음 목표 지점을 정하고, 칸 단위 이동 명령을 내리고, 도착하면 방문 시각을 갱신한다. | FR-09, 10, 16 |
-| UC-04 | 경로 계획 | - | 지형 지도 위에서 최소 비용 경로를 만들고, 경로가 없으면 경보를 낸다. | FR-03~06 |
-| UC-05 | 장애물 재계획 | 인식 센서 | 경로 위에 새 장애물이 생기면 현재 위치에서 경로를 다시 만든다. | FR-11, 12 |
-| UC-06 | 배터리 복귀 | 배터리 관리 | 복귀 에너지가 부족해지기 전에 순찰을 멈추고 기지로 돌아간다. | FR-13, 14 |
-| UC-07 | 상황 감시 | 관제 지휘관 | 지형, 경로, UGV 위치, 장애물, 순찰 지점, 임무 상태를 화면으로 본다. | FR-15, 17 |
-
-UC-03 순찰 수행은 항상 UC-04 경로 계획을 포함(include)하며, 장애물이 발견되거나 배터리가 부족한 조건에서만 UC-05, UC-06으로 확장(extend)된다. UC-05와 UC-06도 새 경로를 만들 때 UC-04를 포함한다.
-
-#### (2) 클래스 다이어그램 (구조 모델)
-
 ![클래스 다이어그램](images/class_diagram.svg)
 
-*그림 7. 클래스 다이어그램 (스테레오타입의 U1~U5는 3장 유닛 ID, L1~L4는 계층)*
-
-- 핵심 클래스 5개(TerrainMap, AStarPlanner, PatrolScheduler, EnergyMonitor, MissionManager)가 3장에서 상세 설계하는 유닛 U1~U5이다.
-- PatrolControllerNode는 MissionManager를 하나 소유(합성)하며, MissionManager가 반환한 출력 목록을 토픽으로 발행한다.
-- 연관 화살표는 모두 상위 계층에서 하위 계층 방향이다. TerrainMap은 다른 클래스를 참조하지 않는다.
-- PatrolPoint, MissionState, Config는 값만 담는 자료형이다. Config는 읽기 전용(frozen)이며 각 클래스 생성 시 전달된다.
-
-#### (3) 순차 다이어그램 (행위 모델): 장애물 재계획
-
-과제2의 검증 시나리오(시작 → 장애물 발견 → 배터리 부족 → 복귀) 중 가장 많은 객체가 참여하는 "장애물 재계획(UC-05)" 흐름을 나타냈다.
+*그림 7. 클래스 다이어그램 (U1~U5: 3장 유닛 ID, L1~L4: 계층)*
 
 ![순차 다이어그램](images/seq_replan.svg)
 
 *그림 8. 순차 다이어그램 — 순찰 중 경로 위에 새 장애물이 감지된 경우*
 
-1. 인식 센서 노드가 발행한 장애물 목록을 ControllerNode가 받아 `MissionManager.on_obstacles()`를 호출한다.
-2. MissionManager는 장애물을 지도에 반영하고(`add_obstacles`), 복귀 에너지 지도를 갱신한 뒤, 남은 경로가 여전히 유효한지 검사한다.
-3. 경로가 막혔으면 상태를 "재계획 중"으로 바꾸고 현재 위치에서 같은 목표까지 `plan()`을 다시 호출한다.
-4. 새 경로를 받으면 상태를 "순찰 중"으로 되돌리고, 상태 변경·새 경로·다음 이동 칸을 출력 목록으로 반환한다. ControllerNode가 이를 구동부와 운용자에게 발행한다.
-
-#### (4) 상태 기계 다이어그램 (행위 모델): 임무 상태
-
-FR-15의 임무 상태 5개와 상태 사이의 전환 조건을 정의했다(과제1 WBS 2.2 "임무 상태 전환 설계"). "순찰 중", "재계획 중", "복귀 중"은 UGV가 움직이는 상태이므로 상위 상태 "운행 중"으로 묶었다. 정지 명령은 운행 중의 어느 하위 상태에서든 받을 수 있다.
-
 ![상태 기계 다이어그램](images/state_machine.svg)
 
 *그림 9. MissionManager의 임무 상태 기계 다이어그램*
 
-각 전환의 상세 동작은 3.5절 U5의 상태 전환표에 정리했다.
+수업의 산출물 간 일관성 점검 기준으로 그림 6~9를 확인했다.
 
-#### (5) 산출물 간 일관성 점검
+| 점검 항목 | 결과 |
+|---|---|
+| 기능 ↔ 구조: 클래스 이름이 유스케이스 설명에 나타나는가? | 핵심 클래스 5개가 UC-01~07의 지형 지도·경로·순찰 지점·복귀 에너지·임무 상태 개념과 대응함 |
+| 기능 ↔ 행위: 유스케이스별 순차 다이어그램이 있고 액터가 일치하는가? | UC-05와 그림 8의 액터(인식 센서, 구동부, 운용자)가 일치함. 나머지 유스케이스는 구현 단계에서 추가 예정 |
+| 구조 ↔ 행위: 메시지와 상태가 클래스에 정의되었는가? | 그림 8의 메시지는 모두 그림 7의 연산이고, 그림 9의 상태는 MissionManager의 state 속성임 |
 
-수업에서 제시한 객체지향 설계 산출물 간 일관성 점검 기준으로 그림 6~9를 확인했다.
+### 2.4 토픽 인터페이스
 
-| 점검 항목 | 점검 내용 | 결과 |
-|---|---|---|
-| 기능 모델 ↔ 구조 모델 | 모든 클래스 이름이 유스케이스 설명 어딘가에 나타나는가? | TerrainMap(지형 지도), AStarPlanner(경로), PatrolScheduler(순찰 지점), EnergyMonitor(복귀 에너지), MissionManager(임무 상태)가 UC-01~07 설명의 개념과 대응함 |
-| 기능 모델 ↔ 행위 모델 | 유스케이스마다 순차 다이어그램이 있고, 액터가 일치하는가? | UC-05 → 그림 8 (인식 센서, 구동부, 운용자 액터 일치). 나머지 유스케이스의 순차 다이어그램은 구현 단계(WBS 3.4)에서 같은 형식으로 추가할 예정 |
-| 구조 모델 ↔ 행위 모델 | 상태 기계가 클래스 인스턴스와 대응하고, 메시지가 클래스 연산으로 정의되었는가? | 그림 9는 MissionManager 인스턴스의 state 속성과 대응. 그림 8의 메시지(on_obstacles, add_obstacles, update_return_map, is_path_valid, plan, neighbors, set_state)가 모두 그림 7의 연산으로 정의됨 |
+노드 구성은 그림 2와 같다. 칸 좌표는 `geometry_msgs/Point`의 x = 행, y = 열로 표현하며, 등판각·센서 반경·여유분·지도 크기 등 모든 수치는 모든 노드가 `config/params.yaml` 하나에서 읽는다(NFR-05).
 
-### 2.5 노드 및 토픽 인터페이스 설계
-
-#### (1) 노드 구성
-
-| 노드 | 구분 | 역할 | 관련 요구사항 |
+| 토픽 | 메시지 타입 | 발행 → 구독 | 내용 |
 |---|---|---|---|
-| patrol_controller | 대상 시스템 | 순찰 경로 계획 제어기 (L1~L4) | FR-01~16 |
-| perception_sim | 시뮬레이션 | 시나리오 파일에 숨겨 둔 장애물 중 UGV 반경 3칸 안의 것만 발행 | FR-18 |
-| battery_sim | 시뮬레이션 | 이동할 때마다 거리·오르막 고도에 비례해 잔량을 줄이고 발행 (에너지 식은 U4의 `energy_step()` 재사용) | FR-19 |
-| drive_sim | 시뮬레이션 | 받은 칸으로 한 칸 이동하고, 현재 위치를 주기적으로(기본 5 Hz) 발행 | FR-16 |
-| visualizer | 표시 (View) | 고도 명암 지도 위에 경로·UGV·장애물·순찰 지점을 OpenCV로 그리고, RViz2 마커 발행 | FR-17 |
-| (운용자) | 외부 | `ros2 topic pub` 또는 간단한 CLI로 명령 입력 | FR-07, 08 |
+| /operator/command | std_msgs/String | 운용자 → controller | `start`, `stop`, `add <행> <열>`, `remove <지점ID>` |
+| /ugv/pose | geometry_msgs/Point | drive_sim → controller, 센서·배터리 시뮬, visualizer | 현재 칸 (5 Hz 주기) |
+| /controller/next_cell | geometry_msgs/Point | controller → drive_sim | 다음 이동 칸 |
+| /perception/obstacles | geometry_msgs/PoseArray | perception_sim → controller, visualizer | 반경 3칸 안 장애물 칸 목록 |
+| /battery/level | std_msgs/Float32 | battery_sim → controller | 배터리 잔량 [Wh] |
+| /controller/path | nav_msgs/Path | controller → visualizer | 현재 계획 경로 |
+| /mission/status, /mission/alarm | std_msgs/String | controller → 운용자, visualizer | 임무 상태(JSON), 경보 |
+| /viz/markers | visualization_msgs/MarkerArray | visualizer → RViz2 | 지형·경로·UGV·장애물 마커 |
 
-#### (2) 토픽 인터페이스
+### 2.5 설계 품질 평가 (응집도·결합도)
 
-칸 좌표는 `geometry_msgs/Point`의 x = 행, y = 열(z = 0)로 표현한다.
-
-| 토픽 | 메시지 타입 | 발행 → 구독 | 내용 | 요구사항 |
-|---|---|---|---|---|
-| /operator/command | std_msgs/String | 운용자 → controller | `start`, `stop`, `add <행> <열>`, `remove <지점ID>` | FR-07, 08 |
-| /ugv/pose | geometry_msgs/Point | drive_sim → controller, perception_sim, battery_sim, visualizer | 현재 칸 | FR-16 |
-| /controller/next_cell | geometry_msgs/Point | controller → drive_sim | 다음 이동 칸 | FR-16 |
-| /perception/obstacles | geometry_msgs/PoseArray | perception_sim → controller, visualizer | 센서 범위 안 장애물 칸 목록 | FR-11, 18 |
-| /battery/level | std_msgs/Float32 | battery_sim → controller | 배터리 잔량 [Wh] | FR-13, 19 |
-| /controller/path | nav_msgs/Path | controller → visualizer | 현재 계획 경로 | FR-17 |
-| /mission/status | std_msgs/String | controller → 운용자, visualizer | 임무 상태 JSON (상태, 목표 지점, 지점별 마지막 방문 시각) | FR-15 |
-| /mission/alarm | std_msgs/String | controller → 운용자, visualizer | 경보 ("경로 없음", "잘못된 명령" 등) | FR-06, NFR-04 |
-| /viz/markers | visualization_msgs/MarkerArray | visualizer → RViz2 | 지형·경로·UGV·장애물 마커 | FR-17 |
-
-#### (3) 설정 파일 (NFR-05)
-
-등판각, 센서 반경, 여유분, 지도 크기 등 모든 수치는 `config/params.yaml` 하나에 모으고, 모든 노드가 같은 파일을 읽는다(아래 수치는 가정값).
-
-```yaml
-map:
-  dem_file: data/dem_100x100.npy   # 파이프-필터 전처리 결과
-  size: 100                        # N (N×N 격자)
-  cell_size_m: 30.0
-  static_obstacles: [[40, 41], [40, 42]]
-terrain:
-  max_slope_deg: 30.0              # 최대 등판각
-  slope_weight: 2.0                # 경사 비용 가중치
-sensor:
-  radius_cells: 3
-energy:
-  capacity_wh: 500.0
-  wh_per_m: 0.01                   # 이동 1 m당 소모
-  wh_per_climb_m: 0.5              # 오르막 1 m당 추가 소모
-  return_margin: 1.2               # 복귀 여유분 20%
-mission:
-  base_cell: [0, 0]
-  replan_time_limit_s: 0.5
-```
-
-### 2.6 설계 품질 평가 (응집도·결합도)
-
-좋은 설계는 모듈 내부의 응집도는 높고 모듈 간 결합도는 낮아야 한다(High cohesion, Low coupling).
-
-**(1) 응집도**
-
-| 모듈 | 응집도 | 근거 |
+| 모듈 | 응집도 | 결합도 |
 |---|---|---|
-| TerrainMap (U1) | 교환적 응집 | 통행 판정, 이동 비용, 장애물 등록이 모두 같은 격자 데이터(고도, 장애물)를 사용한다. 각 메서드는 하나의 계산만 하는 기능적 단위이다. |
-| AStarPlanner (U2) | 기능적 응집 | "최소 비용 경로 생성"이라는 단일 목적만 수행한다. |
-| PatrolScheduler (U3) | 교환적 응집 | 지점 등록·삭제·방문 갱신·선정이 모두 같은 순찰 지점 표를 사용한다. 핵심 연산 `select_next()`는 기능적 단위이다. |
-| EnergyMonitor (U4) | 기능적 응집 | "기지 복귀가 필요한가"를 판단하는 단일 목적을 위해 복귀 에너지를 계산·조회한다. |
-| MissionManager (U5) | 순차적 응집 | 이벤트 수신 → 판단 → 상태 전환 → 출력 생성 순으로, 앞 단계의 출력이 다음 단계의 입력이 된다. |
-| PatrolControllerNode (L4) | 교환적 응집 | ROS 2 메시지와 내부 자료형 사이의 변환이라는 같은 입출력 데이터를 다룬다. |
-| 시뮬레이션·표시 노드 | 기능적 응집 | 노드마다 센서, 배터리, 구동, 표시 중 한 가지 기능만 담당한다. |
+| TerrainMap (U1) | 교환적 — 모든 연산이 같은 격자 데이터를 사용 | 다른 모듈을 참조하지 않음 |
+| AStarPlanner (U2) | 기능적 — 최소 비용 경로 생성 | TerrainMap과 데이터 결합 (공개 메서드만 사용) |
+| PatrolScheduler (U3) | 교환적 — 같은 순찰 지점 표를 사용 | 좌표·시각만 받는 데이터 결합 (지형을 모름) |
+| EnergyMonitor (U4) | 기능적 — 기지 복귀 필요 여부 판단 | TerrainMap과 데이터 결합 |
+| MissionManager (U5) | 순차적 — 이벤트 → 판단 → 상태 전환 → 출력 | U2~U4와 데이터 결합. `plan()`의 None은 "완료할 수 없음"을 알리는 데이터이므로 제어 결합이 아님 |
+| 노드 간 | 기능적 — 노드마다 한 기능 | 토픽 메시지로만 주고받는 데이터 결합 |
 
-수업에서 다룬 낮은 수준의 응집(우연적, 논리적, 시간적)에 해당하는 모듈은 없다. 예를 들어 "입출력"이라는 공통점만으로 모듈을 묶지 않고(논리적 응집 회피), 출력은 각 노드와 L4에 기능별로 나누었다.
+설정값은 전역 변수 대신 읽기 전용 객체로 생성자에 전달해 공통 결합을 피했고, 다른 클래스의 비공개 속성에 직접 접근하지 않아 내용 결합도 없다. 낮은 수준의 응집(우연적·논리적·시간적)에 해당하는 모듈은 없다.
 
-**(2) 결합도**
+### 2.6 요구사항 추적표
 
-| 모듈 간 관계 | 결합도 | 설계 내용 |
-|---|---|---|
-| 노드 ↔ 노드 | 데이터 결합 | 토픽 메시지로 필요한 값(칸 좌표, 잔량 등)만 주고받는다. 다른 노드의 내부를 알지 못한다. |
-| MissionManager → AStarPlanner | 데이터 결합 | `plan(start, goal)`에 좌표만 전달하고, 경로 리스트 또는 None을 받는다. None은 "작업을 완료할 수 없음"을 알리는 데이터일 뿐 호출자의 동작을 지시하는 플래그가 아니므로 제어 결합이 아니다. 경보를 낼지는 MissionManager가 정한다. |
-| MissionManager → PatrolScheduler, EnergyMonitor | 데이터 결합 | 좌표, 시각, 잔량 같은 기본 값만 전달한다. |
-| AStarPlanner, EnergyMonitor → TerrainMap | 데이터 결합 (스탬프 결합 위험 관리) | 지도 객체 참조를 생성 시 한 번 받지만, 내부 배열에 직접 접근하지 않고 `is_traversable()`, `move_cost()`, `neighbors()` 인터페이스만 사용한다. |
-| 전체 → Config | 공통 결합 회피 | 설정값을 전역 변수로 두지 않고, 읽기 전용 객체로 생성자에 전달한다. 실행 중에 값이 바뀌어 여러 모듈이 함께 영향을 받는 일이 없다. |
-| 내용 결합 | 없음 | 다른 클래스의 비공개 속성(이름이 `_`로 시작)에 직접 접근하지 않는다. |
+단위 시험 ID(UT-Ux-nn)는 3장 각 유닛의 시험 항목이다.
 
-### 2.7 요구사항 추적표
-
-과제2의 요구사항이 어느 구성요소와 유닛에서 구현되고, 어떤 시험으로 검증되는지를 연결했다. 단위 시험 ID(UT-Ux-nn)는 3장 각 유닛의 시험 항목이다.
-
-| 요구사항 | 아키텍처 구성요소 | 유닛 | 검증 |
+| 요구사항 | 구성요소 | 유닛 | 검증 |
 |---|---|---|---|
-| FR-01 | controller L1 | U1 | UT-U1-01 |
-| FR-02 | controller L1 | U1 | UT-U1-04 |
-| FR-03 | controller L1 | U1 | UT-U1-02 (29.9° / 30.1° 경계값) |
-| FR-04 | controller L1 | U1 | UT-U1-03 |
-| FR-05 | controller L2 | U2 | UT-U2-01, 02 |
-| FR-06 | controller L2, L3 | U2, U5 | UT-U2-03, UT-U5-06 |
-| FR-07 | controller L4, L3 | U3, U5 | UT-U3-01, UT-U5-09 |
-| FR-08 | controller L4, L3 | U5 | UT-U5-01, 02 |
-| FR-09 | controller L3 | U3 | UT-U3-02, 03 |
-| FR-10 | controller L3 | U3, U5 | UT-U3-04, UT-U5-03 |
-| FR-11 | controller L1, L3 | U1, U5 | UT-U1-04, UT-U5-04 |
-| FR-12 | controller L2, L3 | U2, U5 | UT-U2-05, UT-U5-04, 05 |
-| FR-13 | controller L3 | U4 | UT-U4-01, 02 |
-| FR-14 | controller L3 | U4, U5 | UT-U4-03, UT-U5-07 |
-| FR-15 | controller L3, L4 | U5 | UT-U5-08 |
-| FR-16 | controller L4, drive_sim | U5 | UT-U5-01, 시나리오 시험 |
-| FR-17 | visualizer | - | 시나리오 시험 (화면 확인) |
-| FR-18 | perception_sim | - | 노드 시험 (반경 3칸 경계) |
-| FR-19 | battery_sim | U4 (`energy_step` 재사용) | 노드 시험 |
-| NFR-01 | controller L2 | U2 | UT-U2-06 (성능 측정) |
-| NFR-02 | controller L1, L2 | U1, U2 | UT-U2-04 (무작위 지도) |
-| NFR-03 | controller L3 | U4, U5 | UT-U4-04, 시나리오 시험 |
-| NFR-04 | controller L4, L1, L3 | U1, U5 | UT-U1-05, UT-U5-09 |
-| NFR-05 | Config (params.yaml) | U1~U5 | 설정값 변경 후 재실행 시험 |
-| NFR-06 | 노드 구조 (그림 2) | - | launch 실행 후 `ros2 node list` 확인 |
-| NFR-07 | 실행 환경 | - | WSL2 + ROS 2 환경 실행 확인 |
+| FR-01~04 | L1 지형 모델 | U1 | UT-U1-01~04 |
+| FR-05, 06 | L2, L3 | U2, U5 | UT-U2-01~03, UT-U5-05 |
+| FR-07~10 | L3, L4 | U3, U5 | UT-U3-01~05, UT-U5-01~03, 08 |
+| FR-11, 12 | L1~L3 | U1, U2, U5 | UT-U1-04, UT-U2-04, UT-U5-04 |
+| FR-13, 14 | L3 | U4, U5 | UT-U4-01~03, UT-U5-06 |
+| FR-15, 16 | L3, L4 | U5 | UT-U5-01, 07 |
+| FR-17~19 | visualizer, 시뮬레이션 노드 | U4 (`energy_step` 재사용) | 노드 시험, 시나리오 시험 |
+| NFR-01, 02 | L1, L2 | U1, U2 | UT-U2-04, 05 |
+| NFR-03 | L3 | U4, U5 | UT-U4-04, 시나리오 시험 |
+| NFR-04 | L1, L3, L4 | U1, U5 | UT-U1-04, UT-U5-08 |
+| NFR-05~07 | Config, 노드 구조, 실행 환경 | - | 설정 변경 시험, `ros2 node list`, WSL2 실행 확인 |
 
-모든 FR·NFR이 하나 이상의 설계 요소와 검증 방법에 연결되어 있으므로, 설계가 요구사항을 빠짐없이 포함하고 추적 가능하다.
+모든 요구사항이 설계 요소와 검증 방법에 연결되므로, 설계가 요구사항을 빠짐없이 포함하고 추적 가능하다.
 
 ## 3. 상세 설계 (유닛 설계)
 
-### 3.0 유닛 선정 및 공통 사항
+제어기의 핵심 기능을 직접 구현하고 ROS 2 없이 단독으로 시험할 수 있는 L1~L3의 유닛 5개를 대상으로 한다. L4와 시뮬레이션·표시 노드는 메시지 변환 위주의 코드이므로 2.4절 인터페이스로 대신한다.
 
-**유닛 선정 기준:** 제어기의 핵심 기능 요구사항을 직접 구현하고, ROS 2 없이 단독으로 시험할 수 있는 L1~L3 계층의 유닛 5개를 상세 설계 대상으로 정했다. L4 인터페이스 노드와 시뮬레이션·표시 노드는 메시지 변환 위주의 얇은 코드이므로 2.5절 인터페이스 설계로 대신한다.
+| ID | 유닛 | 계층 | 파일 | 관련 요구사항 |
+|---|---|---|---|---|
+| U1 | TerrainMap | L1 | terrain/terrain_map.py | FR-01~04, 11, NFR-02, 04 |
+| U2 | AStarPlanner | L2 | planning/astar.py | FR-05, 06, 12, NFR-01, 02 |
+| U3 | PatrolScheduler | L3 | mission/scheduler.py | FR-07, 09, 10 |
+| U4 | EnergyMonitor | L3 | mission/energy.py | FR-13, 14, 19, NFR-03 |
+| U5 | MissionManager | L3 | mission/manager.py | FR-06, 08, 10, 12, 14~16, NFR-04 |
 
-| ID | 유닛 (클래스) | 계층 | 파일 | 관련 요구사항 | 과제1 LOC 모듈 |
-|---|---|---|---|---|---|
-| U1 | TerrainMap | L1 | terrain/terrain_map.py | FR-01~04, 11, NFR-02, 04, 05 | 지형 지도 및 비용 모델 |
-| U2 | AStarPlanner | L2 | planning/astar.py | FR-05, 06, 12, NFR-01, 02 | A\* 경로 계획 및 재계획 |
-| U3 | PatrolScheduler | L3 | mission/scheduler.py | FR-07, 09, 10 | 순찰·임무 관리 |
-| U4 | EnergyMonitor | L3 | mission/energy.py | FR-13, 14, 19, NFR-03 | 순찰·임무 관리 |
-| U5 | MissionManager | L3 | mission/manager.py | FR-06, 08, 10, 12, 14~16, NFR-04 | 순찰·임무 관리 |
-
-**공통 자료형**
-
-| 이름 | 정의 | 설명 |
-|---|---|---|
-| Cell | `tuple[int, int]` | 격자 칸 좌표 (행, 열). 0 ≤ 행, 열 < N |
-| Path | `list[Cell]` | 출발 칸부터 목표 칸까지 이어진 칸 목록. 이웃한 칸끼리는 4방향으로 인접 |
-| PatrolPoint | dataclass (pid: str, cell: Cell, last_visit: float 또는 None) | 순찰 지점. last_visit = None은 아직 방문하지 않음을 뜻함 |
-| MissionState | Enum: IDLE(대기), PATROLLING(순찰 중), REPLANNING(재계획 중), RETURNING(복귀 중), STOPPED(정지) | 임무 상태 (FR-15) |
-| Config | frozen dataclass | params.yaml 값 (2.5절) |
-
-**패키지 구성**
-
-```
-ugv_patrol_planner/
-├── config/params.yaml
-├── tools/prepare_dem.py            # 지도 전처리 (파이프-필터)
-├── ugv_patrol_planner/
-│   ├── terrain/terrain_map.py      # U1 TerrainMap
-│   ├── planning/astar.py           # U2 AStarPlanner
-│   ├── mission/scheduler.py        # U3 PatrolScheduler
-│   ├── mission/energy.py           # U4 EnergyMonitor
-│   ├── mission/manager.py          # U5 MissionManager
-│   └── nodes/                      # L4 controller_node, 시뮬레이션 3종, visualizer
-├── launch/patrol.launch.py
-└── test/                           # test_u1_terrain.py ~ test_u5_manager.py (pytest)
-```
+**공통 자료형:** Cell = (행, 열) 튜플, Path = 4방향으로 이어진 Cell 리스트, PatrolPoint = (pid, cell, last_visit; 미방문이면 None), MissionState = 대기·순찰 중·재계획 중·복귀 중·정지, Config = params.yaml 값을 담은 읽기 전용 객체.
 
 ### 3.1 U1. TerrainMap — 지형 지도 및 이동 비용
 
-**(1) 개요:** N×N 격자의 고도·장애물 정보를 보관하고, 인접 칸 사이 이동의 통행 가능 여부와 이동 비용을 계산한다. 경로 계획(U2)과 에너지 감시(U4)가 함께 사용하는 지형 모델이다.
+**역할:** N×N 격자의 고도·장애물을 보관하고, 인접 칸 사이 이동의 통행 가능 여부와 비용을 계산한다. U2와 U4가 함께 쓰는 지형 모델이다. **자료 구조:** `_elev`(N×N 고도 [m]), `_obstacle`(N×N bool), `cell_size`(30 m), `max_slope_deg`(θmax = 30°), `slope_weight`(w = 2.0).
 
-**(2) 자료 구조**
-
-| 속성 | 자료형 | 설명 |
+| 메서드 | 입력 → 출력 | 설명 |
 |---|---|---|
-| _elev | np.ndarray (N×N, float32) | 칸별 고도 [m] |
-| _obstacle | np.ndarray (N×N, bool) | 장애물 여부 (설정 파일의 정적 장애물 + 감지된 장애물) |
-| n | int | 격자 크기 N |
-| cell_size | float | 칸 한 변 길이 [m] (기본 30) |
-| max_slope_deg | float | 최대 등판각 θmax [°] (기본 30) |
-| slope_weight | float | 경사 비용 가중치 w (기본 2.0) |
+| from_file(path, cfg) | 파일 경로 → TerrainMap | 고도 파일 로드, 정적 장애물 등록. 크기가 N×N이 아니거나 NaN이 있으면 ValueError (FR-01, 02) |
+| is_traversable(a, b) | 두 칸 → bool | b가 범위 안, 장애물 아님, 경사각 ≤ θmax이면 True (FR-03) |
+| move_cost(a, b) | 두 칸 → float | 이동 비용, 통행 불가면 ∞ (FR-04) |
+| neighbors(c) | 칸 → (칸, 비용) 목록 | 통행 가능한 4방향 이웃 |
+| add_obstacles(cells) | 칸 목록 → 칸 목록 | 범위 안의 새 장애물만 등록하고 반환. 범위 밖은 무시 (FR-11, NFR-04) |
 
-**(3) 인터페이스**
+**알고리즘:** 경사각 θ = arctan(|h(b) − h(a)| / cell_size), 이동 비용 cost = cell_size × (1 + w × θ / θmax). θ > θmax이거나 장애물이면 통행 불가(∞)이다. 평지 비용은 30, 최대 경사에서는 3배이며, 비용이 항상 cell_size 이상이므로 U2의 휴리스틱이 비용을 과대 추정하지 않는다. 경사 30°는 고도차 약 17.3 m에 해당한다.
 
-| 메서드 | 입력 | 출력 | 설명 |
-|---|---|---|---|
-| from_file(path, cfg) | 고도 파일 경로, Config | TerrainMap | 파일을 읽어 지도 생성, 정적 장애물 등록. 크기가 N×N이 아니거나 NaN이 있으면 ValueError (FR-01, 02) |
-| in_bounds(c) | Cell | bool | 지도 범위 안인지 확인 |
-| elevation(c) | Cell | float | 칸의 고도 |
-| is_obstacle(c) | Cell | bool | 장애물 여부 |
-| slope_deg(a, b) | Cell, Cell | float | 인접 칸 사이 경사각 |
-| is_traversable(a, b) | Cell, Cell | bool | b가 범위 안이고, 장애물이 아니고, 경사각 ≤ θmax이면 True (FR-03) |
-| move_cost(a, b) | Cell, Cell | float | 이동 비용. 통행 불가면 무한대 (FR-04) |
-| neighbors(c) | Cell | (Cell, 비용) 반복자 | 통행 가능한 4방향 이웃과 이동 비용 |
-| add_obstacles(cells) | list[Cell] | list[Cell] | 범위 안의 새 장애물만 등록하고, 새로 추가된 칸을 반환. 범위 밖 칸은 무시 (FR-11, NFR-04) |
-
-**(4) 알고리즘: 경사각과 이동 비용**
-
-- 경사각: θ(a, b) = arctan( |h(b) − h(a)| / cell_size )
-- 이동 비용: cost(a, b) = cell_size × (1 + w × θ / θmax)  (θ ≤ θmax이고 장애물이 아닐 때), 그 외에는 ∞
-- 평지(θ = 0)의 비용은 칸 크기(30)이고, 최대 등판각에서는 (1 + w)배(기본 3배)가 된다. 비용은 항상 cell_size 이상이므로 U2의 휴리스틱이 실제 비용을 넘지 않는다.
-- 칸 크기 30 m에서 경사각 30°는 고도차 약 17.3 m에 해당한다(1부 4.1 제약사항).
-
-```
-function is_traversable(a, b):
-    if not in_bounds(b) or _obstacle[b]: return False
-    return slope_deg(a, b) <= max_slope_deg        # 30.0°까지 통행 가능, 초과하면 불가 (FR-03)
-
-function move_cost(a, b):
-    if not is_traversable(a, b): return INF
-    θ = slope_deg(a, b)
-    return cell_size * (1 + slope_weight * θ / max_slope_deg)      # FR-04
-
-function neighbors(c):
-    for (dr, dc) in [(-1, 0), (1, 0), (0, -1), (0, 1)]:           # 4방향
-        nb = (c.row + dr, c.col + dc)
-        if is_traversable(c, nb): yield (nb, move_cost(c, nb))
-
-function add_obstacles(cells):
-    added = []
-    for c in cells:
-        if in_bounds(c) and not _obstacle[c]:
-            _obstacle[c] = True
-            added.append(c)
-    return added                                    # 범위 밖·중복 칸은 무시
-```
-
-**(5) 단위 시험 항목**
-
-| ID | 시험 내용 | 기대 결과 | 요구사항 |
-|---|---|---|---|
-| UT-U1-01 | 100×100 고도 파일 로드, 99×100 파일 로드 | n = 100이고 고도 값 일치. 99×100은 ValueError | FR-01 |
-| UT-U1-02 | 고도차로 경사각 29.9°, 30.0°, 30.1° 생성 | 통행 가능, 가능, 불가 | FR-03 |
-| UT-U1-03 | 경사 0°, 10°, 20°의 이동 비용 비교 | 30 = cost(0°) < cost(10°) < cost(20°) | FR-04 |
-| UT-U1-04 | 정적 장애물 칸, add_obstacles()로 추가한 칸으로 이동 | 통행 불가, 비용 무한대 | FR-02, 11 |
-| UT-U1-05 | 범위 밖 칸 (−1, 0), (100, 5) 추가 | 무시되고 예외 없음, 반환 목록 비어 있음 | NFR-04 |
+| ID | 시험 내용 → 기대 결과 | 요구사항 |
+|---|---|---|
+| UT-U1-01 | 100×100 파일 로드 → n = 100, 99×100 파일 → ValueError | FR-01 |
+| UT-U1-02 | 경사 29.9°, 30.0°, 30.1° → 가능, 가능, 불가 (경계값) | FR-03 |
+| UT-U1-03 | 경사 0°, 10°, 20° → 30 < cost(10°) < cost(20°) | FR-04 |
+| UT-U1-04 | 정적·추가 장애물 칸 → 통행 불가. 범위 밖 칸 추가 → 무시, 예외 없음 | FR-02, 11, NFR-04 |
 
 ### 3.2 U2. AStarPlanner — A\* 경로 계획
 
-**(1) 개요:** TerrainMap 위에서 출발 칸부터 목표 칸까지 이동 비용의 합이 최소인 경로를 A\* 알고리즘으로 구한다. 재계획(FR-12)은 같은 `plan()`을 현재 위치에서 다시 호출하는 방식으로 처리한다.
+**역할:** 출발 칸에서 목표 칸까지 비용 합이 최소인 경로를 구한다. 재계획(FR-12)은 현재 위치에서 `plan()`을 다시 호출한다. **자료 구조:** 우선순위 큐 `open_heap`(f, h, 순번, 칸), `g`(출발점부터 최소 비용), `came_from`(부모 칸), `closed`(확정된 칸), `last_plan_ms`(소요 시간).
 
-**(2) 자료 구조**
-
-| 속성/변수 | 자료형 | 설명 |
+| 메서드 | 입력 → 출력 | 설명 |
 |---|---|---|
-| _terrain | TerrainMap | 생성 시 주입. 지형 인터페이스만 사용 |
-| open_heap | list[(f, h, seq, Cell)] | 우선순위 큐(heapq). f가 같으면 h가 작은 칸, 그다음 먼저 넣은 칸 우선 |
-| g | dict[Cell, float] | 출발 칸부터의 최소 비용 |
-| came_from | dict[Cell, Cell] | 경로 역추적용 부모 칸 |
-| closed | set[Cell] | 최소 비용이 확정된 칸 |
-| last_plan_ms | float | 마지막 계획 소요 시간 [ms] (NFR-01 감시용) |
+| plan(start, goal) | 두 칸 → Path 또는 None | 최소 비용 경로. 도달 불가하거나 목표가 장애물·범위 밖이면 None (FR-05, 06) |
+| is_path_valid(path, i) | 경로, 인덱스 → bool | i 이후의 모든 이동이 아직 통행 가능한지 검사 (FR-12) |
 
-**(3) 인터페이스**
-
-| 메서드 | 입력 | 출력 | 설명 |
-|---|---|---|---|
-| plan(start, goal) | Cell, Cell | Path 또는 None | 최소 비용 경로. 도달할 수 없거나 목표가 장애물·범위 밖이면 None (FR-05, 06). start = goal이면 [start] |
-| is_path_valid(path, from_idx) | Path, int | bool | from_idx 이후 모든 이동이 여전히 통행 가능한지 검사 (FR-12) |
-| path_cost(path) | Path | float | 경로의 총 비용 (시험·표시용) |
-
-**(4) 알고리즘**
-
-휴리스틱 h(c) = ( |c.행 − goal.행| + |c.열 − goal.열| ) × cell_size (맨해튼 거리). 4방향 이동에서 한 칸 이동 비용은 최소 cell_size이므로 h는 실제 남은 비용을 넘지 않는다(허용 가능, admissible). 이웃 칸 사이에서도 h(c) ≤ cost(c, n) + h(n)이 성립하므로(일관적, consistent) 각 칸은 한 번만 확정되고, A\*가 반환하는 경로는 최소 비용 경로이다.
+휴리스틱 h = 맨해튼 거리 × cell_size이다. 한 칸 비용이 최소 cell_size이므로 h는 허용 가능(admissible)하고 일관적이며, 따라서 반환 경로는 최소 비용 경로이다. 경로는 `neighbors()`가 돌려준 통행 가능 이동으로만 만들어지므로 장애물이나 등판 한계를 넘는 이동이 들어갈 수 없다(NFR-02).
 
 ```
 function plan(start, goal):
-    t0 = now()
-    if not in_bounds(start) or not in_bounds(goal) or is_obstacle(goal): return None
-    g = {start: 0};  came_from = {};  closed = {}
-    push(open_heap, (h(start), h(start), 0, start))
+    if goal is out of bounds or obstacle: return None
+    g = {start: 0};  push(open_heap, (h(start), h(start), 0, start))
     while open_heap is not empty:
-        (_, _, _, cur) = pop(open_heap)
-        if cur in closed: continue                       # 이미 확정된 칸의 중복 항목
-        if cur == goal:
-            last_plan_ms = elapsed(t0)
-            return reconstruct(came_from, goal)          # goal → start 역추적 후 뒤집기
+        cur = pop(open_heap)
+        if cur in closed: continue
+        if cur == goal: return reconstruct(came_from, goal)
         closed.add(cur)
-        for (nb, cost) in terrain.neighbors(cur):        # 통행 불가 이동은 처음부터 제외 (NFR-02)
-            if nb in closed: continue
-            ng = g[cur] + cost
-            if ng < g.get(nb, INF):
-                g[nb] = ng;  came_from[nb] = cur
-                push(open_heap, (ng + h(nb), h(nb), next_seq(), nb))
-    last_plan_ms = elapsed(t0)
-    return None                                          # 경로 없음 → U5가 경보 출력 (FR-06)
-
-function is_path_valid(path, from_idx):
-    for i in from_idx .. len(path) - 2:
-        if not terrain.is_traversable(path[i], path[i + 1]): return False
-    return True
+        for (nb, cost) in terrain.neighbors(cur):
+            if nb not in closed and g[cur] + cost < g.get(nb, INF):
+                g[nb] = g[cur] + cost;  came_from[nb] = cur
+                push(open_heap, (g[nb] + h(nb), h(nb), next_seq(), nb))
+    return None                                  # 경로 없음 → U5가 경보 (FR-06)
 ```
 
-- 시간 복잡도: 칸 수 V = N² = 10,000일 때 O(V log V). 각 칸은 한 번만 확정되므로 100×100 지도에서 0.5초 이내(NFR-01)를 목표로 하며, UT-U2-06에서 실제 시간을 측정한다. 목표를 넘으면 과제1 향후 확장의 D\* Lite로 바꾼다(L2 계층만 변경).
-- 경로는 `neighbors()`가 돌려준 통행 가능 이동으로만 만들어지므로 장애물 칸이나 등판 한계를 넘는 이동이 들어갈 수 없다(NFR-02).
+칸 수 V = 10,000에서 O(V log V)이며, 0.5초(NFR-01)를 넘으면 D\* Lite로 바꾼다(L2만 변경).
 
-**(5) 단위 시험 항목**
-
-| ID | 시험 내용 | 기대 결과 | 요구사항 |
-|---|---|---|---|
-| UT-U2-01 | 10×10 평지, (0,0) → (9,9) | 경로 19칸, 비용 18 × 30 = 540 | FR-05 |
-| UT-U2-02 | 무작위 지도 50개에서 다익스트라(h = 0)와 비용 비교 | A\* 비용 = 다익스트라 비용 | FR-05 |
-| UT-U2-03 | 목표 칸을 장애물 벽으로 완전히 둘러쌈 | None 반환 | FR-06 |
-| UT-U2-04 | 무작위 고도·장애물 지도 100개에서 경로 생성 | 모든 경로에 장애물 칸, 30° 초과 이동이 없음 | NFR-02 |
-| UT-U2-05 | 경로 중간 칸을 장애물로 바꾸기 전후 is_path_valid() | 바꾸기 전 True, 바꾼 후 False | FR-12 |
-| UT-U2-06 | 100×100 지도, 대각선 양 끝 사이 계획 20회 | 최대 소요 시간 0.5초 이내 | NFR-01 |
+| ID | 시험 내용 → 기대 결과 | 요구사항 |
+|---|---|---|
+| UT-U2-01 | 10×10 평지 (0,0) → (9,9) → 19칸, 비용 540 | FR-05 |
+| UT-U2-02 | 무작위 지도 50개 → 다익스트라(h = 0)와 비용 같음 | FR-05 |
+| UT-U2-03 | 목표를 장애물 벽으로 고립 → None | FR-06 |
+| UT-U2-04 | 무작위 지도 100개 → 경로에 장애물·30° 초과 이동 없음. 경로 칸을 장애물로 바꾸면 is_path_valid() = False | NFR-02, FR-12 |
+| UT-U2-05 | 100×100 지도 대각선 끝점 계획 20회 → 최대 0.5초 이내 | NFR-01 |
 
 ### 3.3 U3. PatrolScheduler — 순찰 순서 결정
 
-**(1) 개요:** 순찰 지점 목록을 관리하고, 마지막 방문 이후 경과 시간이 가장 긴 지점(최장 대기 우선)을 다음 목표로 선정한다. 현재 시각은 매개변수(now)로 받으므로 ROS 2 시뮬레이션 시각과 시험용 가상 시각을 똑같이 사용할 수 있다.
+**역할:** 순찰 지점을 관리하고, 마지막 방문 이후 가장 오래 지난 지점(최장 대기 우선)을 다음 목표로 정한다. 현재 시각은 매개변수로 받아 시뮬레이션 시각과 시험용 가상 시각을 똑같이 쓴다. **자료 구조:** `_points`(등록 순서를 유지하는 지점 ID → PatrolPoint 표).
 
-**(2) 자료 구조**
-
-| 속성 | 자료형 | 설명 |
+| 메서드 | 입력 → 출력 | 설명 |
 |---|---|---|
-| _points | dict[str, PatrolPoint] | 등록 순서를 유지하는 지점 표 (지점 ID → 지점) |
-| _next_id | int | 다음에 부여할 지점 번호 ("P1", "P2", …) |
-
-**(3) 인터페이스**
-
-| 메서드 | 입력 | 출력 | 설명 |
-|---|---|---|---|
-| add_point(cell) | Cell | str (지점 ID) | 지점 등록. 같은 칸이 이미 있으면 기존 ID 반환 (FR-07) |
-| remove_point(pid) | str | bool | 지점 삭제. 없는 ID면 False (FR-07) |
-| select_next(now, exclude) | float, 지점 ID 집합 | PatrolPoint 또는 None | exclude를 뺀 지점 중 대기 시간이 가장 긴 지점 (FR-09) |
-| mark_visited(pid, now) | str, float | 없음 | 방문 시각 갱신 (FR-10) |
-| snapshot() | 없음 | list[PatrolPoint] | 지점 상태 조회 (상태 출력·화면 표시용) |
-| `__len__()` | 없음 | int | 등록된 지점 수 |
-
-지점 칸이 지도 범위 안인지, 장애물이 아닌지는 지도를 아는 U5가 등록 전에 검사한다. 따라서 U3는 지형을 몰라도 되며 결합도가 낮다.
-
-**(4) 알고리즘**
-
-선정 우선순위: ① 한 번도 방문하지 않은 지점(last_visit = None)을 등록 순서대로 먼저 → ② 그 외에는 대기 시간(now − last_visit)이 가장 긴 지점 → ③ 대기 시간이 같으면 먼저 등록된 지점.
+| add_point(cell) / remove_point(pid) | 칸 → ID / ID → bool | 지점 등록·삭제. 같은 칸은 기존 ID 반환, 없는 ID는 False (FR-07) |
+| select_next(now, exclude) | 시각, 제외 집합 → PatrolPoint 또는 None | 대기 시간이 가장 긴 지점 (FR-09) |
+| mark_visited(pid, now) | ID, 시각 → 없음 | 방문 시각 갱신 (FR-10) |
 
 ```
 function select_next(now, exclude):
     best = None;  best_wait = -INF
-    for p in _points.values():                      # 등록 순서대로 순회
+    for p in _points.values():                   # 등록 순서대로
         if p.pid in exclude: continue
         wait = INF if p.last_visit is None else now - p.last_visit
-        if wait > best_wait:                        # 같으면 먼저 등록된 지점을 유지
-            best = p;  best_wait = wait
-    return best                                     # 후보가 없으면 None
-
-function mark_visited(pid, now):
-    if pid in _points: _points[pid].last_visit = now
+        if wait > best_wait: best, best_wait = p, wait   # 같으면 먼저 등록된 지점 유지
+    return best
 ```
 
-- 방금 방문한 지점은 대기 시간이 0이 되어 자연스럽게 마지막 순위가 된다. 그래서 가까운 지점만 반복 방문하는 문제가 생기지 않고, 각 지점의 감시 공백은 대략 한 바퀴 순찰 시간으로 제한된다(1부 2.1 목표 2).
-- 지점이 1개뿐이면 같은 지점이 다시 선정되고, U5는 이미 그 칸에 있으므로 이동하지 않고 머문다.
-- exclude는 U5가 경로가 없는 지점을 이번 선정에서 뺄 때 사용한다.
+미방문 지점이 가장 먼저 선정되고, 방금 방문한 지점은 대기 시간이 0이 되어 마지막 순위가 된다. 그래서 가까운 지점만 반복 방문하는 문제가 생기지 않는다(1부 목표 2). exclude는 U5가 경로가 없는 지점을 뺄 때 쓴다.
 
-**(5) 단위 시험 항목**
-
-| ID | 시험 내용 | 기대 결과 | 요구사항 |
-|---|---|---|---|
-| UT-U3-01 | P1, P2, P3 등록 후 P2 삭제, P1과 같은 칸 재등록 | snapshot은 P1, P3. 재등록 시 "P1" 반환 | FR-07 |
-| UT-U3-02 | 방문 시각 P1 = 10, P2 = 5, P3 = 8, now = 20 | P2 선정 | FR-09 |
-| UT-U3-03 | 미방문 지점 P2, P3와 방문한 P1이 섞여 있음 | 미방문 중 먼저 등록된 P2 선정 | FR-09 |
-| UT-U3-04 | mark_visited(P2, 30) 후 select_next(31) | P2.last_visit = 30, P2가 아닌 지점 선정 | FR-10 |
-| UT-U3-05 | 지점 4개를 40회 선정·방문 반복 | 지점별 방문 횟수 차이 ≤ 1 (고른 감시, Validation 관점) | FR-09 |
+| ID | 시험 내용 → 기대 결과 | 요구사항 |
+|---|---|---|
+| UT-U3-01 | P1~P3 등록 후 P2 삭제, P1 칸 재등록 → P1, P3만 남고 "P1" 반환 | FR-07 |
+| UT-U3-02 | 방문 시각 P1 = 10, P2 = 5, P3 = 8, now = 20 → P2 | FR-09 |
+| UT-U3-03 | 미방문 지점이 섞여 있음 → 미방문 중 먼저 등록된 지점 | FR-09 |
+| UT-U3-04 | mark_visited(P2, 30) → P2.last_visit = 30, 다음 선정은 P2가 아님 | FR-10 |
+| UT-U3-05 | 지점 4개를 40회 순환 → 지점별 방문 횟수 차이 ≤ 1 (고른 감시) | FR-09 |
 
 ### 3.4 U4. EnergyMonitor — 기지 복귀 판단
 
-**(1) 개요:** 지도의 모든 칸에서 기지까지 돌아가는 데 필요한 최소 에너지를 미리 계산해 두고(복귀 에너지 지도), 이동할 때마다 배터리 잔량과 비교해 복귀가 필요한지 판단한다. 복귀할 때는 이 지도를 따라 에너지가 가장 적게 드는 경로로 돌아간다.
+**역할:** 모든 칸에서 기지까지 돌아가는 최소 에너지를 미리 계산해 두고(복귀 에너지 지도 R), 이동할 때마다 잔량과 비교해 복귀 여부를 판단한다. **자료 구조:** `base`(기지 칸), `wh_per_m`, `wh_per_climb_m`, `margin`(1.2), `_ret`(N×N 복귀 에너지 R, 갈 수 없는 칸은 ∞).
 
-**(2) 자료 구조**
-
-| 속성 | 자료형 | 설명 |
+| 메서드 | 입력 → 출력 | 설명 |
 |---|---|---|
-| _terrain | TerrainMap | 지형 인터페이스 |
-| base | Cell | 기지 칸 |
-| wh_per_m | float | 이동 1 m당 소모 에너지 [Wh] |
-| wh_per_climb_m | float | 오르막 1 m당 추가 소모 에너지 [Wh] |
-| margin | float | 복귀 여유 배율 (기본 1.2) |
-| _ret | np.ndarray (N×N, float) | 칸별 기지 복귀 필요 에너지 R [Wh]. 기지에 갈 수 없는 칸은 무한대 |
+| energy_step(a, b) | 두 칸 → Wh | 한 칸 이동 에너지. battery_sim도 같은 식 사용 (FR-19) |
+| update_return_map() | 없음 | R 재계산. 시작 시와 장애물 추가 시 호출 (FR-13) |
+| should_return(pos, wh, nxt) | 현재 칸, 잔량, 다음 칸 → bool | 복귀가 필요하면 True (FR-14) |
+| return_path(pos) | 칸 → Path 또는 None | R을 따라 에너지가 최소인 기지 복귀 경로 |
 
-**(3) 인터페이스**
-
-| 메서드 | 입력 | 출력 | 설명 |
-|---|---|---|---|
-| energy_step(a, b) | Cell, Cell | float | 한 칸 이동 에너지 [Wh]. battery_sim 노드도 같은 식을 사용 (FR-19) |
-| update_return_map() | 없음 | 없음 | 복귀 에너지 지도 재계산. 시작할 때와 장애물이 추가될 때 호출 |
-| return_energy(c) | Cell | float | 칸 c에서 기지 복귀 에너지 (FR-13) |
-| should_return(pos, battery_wh, next_cell) | Cell, float, Cell 또는 None | bool | 복귀가 필요하면 True (FR-14) |
-| return_path(pos) | Cell | Path 또는 None | pos에서 기지까지 에너지가 최소인 경로. 갈 수 없으면 None |
-
-**(4) 알고리즘**
-
-한 칸 이동 에너지는 이동 거리와 오르막 고도에 비례한다.
-
-- e(a, b) = wh_per_m × cell_size + wh_per_climb_m × max(0, h(b) − h(a))
-
-복귀 에너지 지도는 기지에서 출발하는 "역방향" 다익스트라 탐색으로 구한다. 칸 v에서 이웃 u로 간 뒤 기지로 돌아가는 에너지는 e(v, u) + R(u)이므로, 오르막과 내리막의 에너지가 다른(비대칭) 경우도 정확히 반영된다. 한 번 계산해 두면 이동할 때마다 O(1)로 조회할 수 있어, 칸마다 경로 탐색을 다시 하는 방식보다 훨씬 빠르다.
+한 칸 이동 에너지는 e(a, b) = wh_per_m × cell_size + wh_per_climb_m × max(0, h(b) − h(a))이다. R은 기지에서 출발하는 역방향 다익스트라로 구한다. 칸 v에서 기지로 가는 에너지는 e(v, u) + R(u)의 최솟값이므로 오르막·내리막의 비대칭도 반영되고, 한 번 계산하면 이동할 때마다 O(1)로 조회할 수 있다.
 
 ```
 function update_return_map():
-    R = full(N×N, INF);  R[base] = 0
-    heap = [(0, base)]
+    R = full(N×N, INF);  R[base] = 0;  heap = [(0, base)]
     while heap is not empty:
         (d, u) = pop(heap)
         if d > R[u]: continue
-        for v in 4-neighbors(u):
-            if not terrain.is_traversable(v, u): continue    # v → u 이동이 가능해야 함
-            nd = d + energy_step(v, u)
-            if nd < R[v]:
-                R[v] = nd;  push(heap, (nd, v))
-    _ret = R
+        for v in 4-neighbors(u) where terrain.is_traversable(v, u):
+            if d + energy_step(v, u) < R[v]:
+                R[v] = d + energy_step(v, u);  push(heap, (R[v], v))
 
-function should_return(pos, battery_wh, next_cell):
-    if battery_wh <= margin * R[pos]: return True             # FR-14 (기지에 갈 수 없으면 R = INF → True)
-    if next_cell is not None:                                 # 한 칸 앞 예측 (NFR-03)
-        predicted = battery_wh - energy_step(pos, next_cell)
-        if predicted <= margin * R[next_cell]: return True
-    return False
-
-function return_path(pos):
-    if R[pos] == INF: return None
-    path = [pos];  c = pos
-    while c != base:                                          # R이 매 단계 줄어들므로 반드시 끝남
-        c = argmin over traversable nb of (energy_step(c, nb) + R[nb])
-        path.append(c)
-    return path
+function should_return(pos, wh, nxt):
+    if wh <= margin * R[pos]: return True                         # FR-14
+    return nxt is not None and wh - energy_step(pos, nxt) <= margin * R[nxt]   # 한 칸 앞 예측
 ```
 
-- **한 칸 앞을 예측하는 이유 (NFR-03):** 현재 칸에서는 조건을 통과해도, 다음 칸이 기지에서 멀어지는 오르막이면 이동한 뒤에는 복귀 에너지가 부족해질 수 있다. 이동 명령을 내리기 전에 다음 칸을 기준으로 검사하면, 이동 후에도 항상 "잔량 > 1.2 × 복귀 에너지"가 유지되므로 기지 밖에서 배터리가 0이 되지 않는다. 이 보장은 제어기와 battery_sim이 같은 에너지 식(`energy_step`)을 쓴다는 전제에서 성립하며, 실제 소모가 모델과 다를 때를 대비한 것이 20% 여유분이다.
-- 복귀 경로는 A\*(경사 비용 기준)가 아니라 복귀 에너지 지도(에너지 기준)를 따라간다. 복귀 판단에 쓴 에너지와 실제 복귀에 드는 에너지가 같아지도록 하기 위함이다.
+**한 칸 앞 예측 (NFR-03):** 현재 칸에서 조건을 통과해도 다음 칸이 기지에서 멀어지는 오르막이면 이동 후 에너지가 부족해질 수 있다. 이동 명령 전에 다음 칸을 기준으로 검사하면 이동 후에도 항상 "잔량 > 1.2 × 복귀 에너지"가 유지된다. 복귀할 때는 A\*(경사 비용) 대신 R을 따라가는 `return_path()`를 써서, 판단에 쓴 에너지와 실제 복귀 에너지가 같아지게 했다.
 
-**(5) 단위 시험 항목**
-
-| ID | 시험 내용 | 기대 결과 | 요구사항 |
-|---|---|---|---|
-| UT-U4-01 | 평지 지도에서 복귀 에너지 지도 계산 | R[base] = 0, R[c] = 맨해튼 칸 수 × wh_per_m × cell_size | FR-13 |
-| UT-U4-02 | 오르막·내리막 지도에서 R[pos]와 return_path(pos)의 에너지 합 비교 | 두 값이 같음 (비대칭 비용 반영) | FR-13 |
-| UT-U4-03 | 잔량 = 1.2 × R[pos], 1.2 × R[pos] + 0.01 (next_cell 없음) | True, False (경계값) | FR-14 |
-| UT-U4-04 | 현재 칸 조건은 통과하지만 기지에서 멀어지는 오르막을 next_cell로 지정 | True (이동 전에 복귀 결정) | NFR-03 |
-| UT-U4-05 | 기지 주변에 장애물 추가 후 update_return_map() | 우회 거리만큼 R 증가, 고립된 칸은 무한대 | FR-11, 13 |
+| ID | 시험 내용 → 기대 결과 | 요구사항 |
+|---|---|---|
+| UT-U4-01 | 평지 지도 → R[base] = 0, R = 맨해튼 칸 수 × wh_per_m × cell_size | FR-13 |
+| UT-U4-02 | 경사 지도 → R[pos] = return_path(pos)의 에너지 합 | FR-13 |
+| UT-U4-03 | 잔량 = 1.2 × R[pos], 1.2 × R[pos] + 0.01 → True, False (경계값) | FR-14 |
+| UT-U4-04 | 기지에서 멀어지는 오르막을 다음 칸으로 지정 → True (이동 전에 복귀) | NFR-03 |
 
 ### 3.5 U5. MissionManager — 임무 상태 관리
 
-**(1) 개요:** 제어기의 중심 유닛으로, 운용자 명령·현재 위치·장애물·배터리 이벤트를 받아 임무 상태(그림 9)를 전환하고, U2~U4를 호출해 목표 선정, 경로 계획, 재계획, 기지 복귀를 수행한다. ROS 2를 직접 호출하지 않고 "출력 목록"을 반환하며, L4 인터페이스 계층이 이를 토픽으로 발행한다. 그래서 ROS 2 없이도 이벤트를 넣고 출력을 확인하는 방식으로 시험할 수 있다.
+**역할:** 운용자 명령·위치·장애물·배터리 이벤트를 받아 임무 상태(그림 9)를 전환하고, U2~U4를 호출해 목표 선정, 경로 계획, 재계획, 복귀를 수행한다. ROS 2를 직접 부르지 않고 출력 목록(NextCell, PathUpdate, Status, Alarm)을 반환하며, L4가 이를 토픽으로 발행한다. **자료 구조:** `state`, `resume_state`(재계획 후 돌아갈 상태), `target`, `path`/`idx`(경로와 현재 인덱스), `pos`, `battery_wh`.
 
-**(2) 자료 구조**
+| 메서드 | 설명 |
+|---|---|
+| on_command(cmd, now) | add·remove는 범위·장애물·ID를 검사해 U3에 반영하고, 잘못되면 경보 (FR-07, NFR-04). start는 지점 ≥ 1이고 위치·잔량을 받은 경우에만 순찰 시작, stop은 이동 명령 중단 (FR-08) |
+| on_pose(cell, now) | 경로 진행 확인, 도착 처리, 복귀 판단, 다음 칸 전달 (FR-10, 13, 14, 16). 위치가 5 Hz로 들어오므로 제어 주기 역할 |
+| on_obstacles(cells, now) | 장애물 반영, 경로가 막히면 재계획 (FR-11, 12) |
+| on_battery(wh) | 잔량 갱신 |
 
-| 속성 | 자료형 | 설명 |
+**상태 전환표** (상태가 바뀔 때마다 Status 출력, FR-15)
+
+| 현재 상태 | 이벤트 [조건] | 동작 → 다음 상태 |
 |---|---|---|
-| state | MissionState | 현재 상태 (초기값 IDLE) |
-| resume_state | MissionState | 재계획이 끝난 뒤 돌아갈 상태 (PATROLLING 또는 RETURNING) |
-| target | PatrolPoint 또는 None | 현재 목표 지점 (복귀 중이면 None) |
-| path, idx | Path, int | 현재 경로와 경로상 현재 위치의 인덱스 |
-| pos | Cell 또는 None | 마지막으로 받은 현재 위치 |
-| battery_wh | float 또는 None | 마지막으로 받은 배터리 잔량 |
-| 출력 자료형 | NextCell(cell), PathUpdate(path), Status(state, info), Alarm(text) | L4가 각각 /controller/next_cell, /controller/path, /mission/status, /mission/alarm으로 발행 |
-
-**(3) 인터페이스**
-
-| 메서드 | 입력 | 출력 | 설명 |
-|---|---|---|---|
-| on_command(cmd, now) | Command (start / stop / add / remove) | list[Output] | 운용자 명령 처리 (FR-07, 08) |
-| on_pose(cell, now) | Cell, float | list[Output] | 위치 수신: 도착 판정, 복귀 판단, 다음 칸 전달 (FR-10, 13, 14, 16) |
-| on_obstacles(cells, now) | list[Cell], float | list[Output] | 장애물 반영, 경로가 막히면 재계획 (FR-11, 12) |
-| on_battery(wh) | float | list[Output] | 잔량 갱신 (출력 없음) |
-
-L4는 `/operator/command` 문자열을 Command로 바꾸면서 형식만 검사한다(예: `add 10 x`처럼 숫자가 아니면 바로 경보). 범위 밖 좌표나 없는 지점 ID처럼 의미가 잘못된 입력은 U5가 경보로 처리한다(NFR-04).
-
-**(4) 상태 전환표 (그림 9 상세)**
-
-| 현재 상태 | 이벤트 [조건] | 동작 | 다음 상태 |
-|---|---|---|---|
-| 대기, 정지 | 시작 명령 [지점 ≥ 1, 위치·잔량 수신] | 목표 선정, 경로 계획, 첫 칸 전달 | 순찰 중 |
-| 대기, 정지 | 시작 명령 [조건 불만족] | 경보 "시작 조건 미충족" | (유지) |
-| 순찰 중 | 목표 지점 도착 | 방문 시각 갱신, 다음 목표 선정·경로 계획 | 순찰 중 |
-| 순찰 중 | 경로 위 새 장애물 | 현재 위치에서 같은 목표로 재계획 | 재계획 중 |
-| 재계획 중 | 재계획 성공 [이전 = 순찰 중] | 새 경로 발행 | 순찰 중 |
-| 재계획 중 | 재계획 성공 [이전 = 복귀 중] | 새 복귀 경로 발행 | 복귀 중 |
-| 순찰 중, 재계획 중 | 목표까지 경로 없음 | 경보 "경로 없음: 지점ID", 다른 지점 선정 | 순찰 중 |
-| 순찰 중, 재계획 중 | 모든 지점까지 경로 없음 | 경보 "경로 없음" | 대기 |
-| 순찰 중 | should_return = True | 복귀 경로(U4) 발행 | 복귀 중 |
-| 복귀 중 | 경로 위 새 장애물 | 복귀 에너지 지도로 새 복귀 경로 계산 | 재계획 중 |
-| 복귀 중 | 기지 도착 | "복귀 완료" 보고 | 대기 |
-| 운행 중 (순찰·재계획·복귀) | 정지 명령 | 이동 명령 중단 | 정지 |
-| 운행 중 | 기지 복귀 경로 없음 | 경보 "기지 복귀 경로 없음" | 정지 |
-
-상태가 바뀔 때마다 Status를 출력한다(FR-15).
-
-**(5) 알고리즘**
+| 대기, 정지 | 시작 명령 [지점 ≥ 1, 위치·잔량 수신] | 목표 선정·경로 계획 → 순찰 중 |
+| 순찰 중 | 목표 도착 | 방문 시각 갱신, 다음 목표 계획 → 순찰 중 |
+| 순찰 중, 복귀 중 | 경로 위 새 장애물 | 현재 위치에서 재계획 → 재계획 중 → (이전 상태로 복귀) |
+| 순찰 중, 재계획 중 | 목표까지 경로 없음 | 경보 "경로 없음: 지점ID", 다른 지점 선정. 모든 지점이 불가하면 → 대기 |
+| 순찰 중 | should_return = True | 복귀 경로 발행 → 복귀 중 |
+| 복귀 중 | 기지 도착 | "복귀 완료" 보고 → 대기 |
+| 운행 중 | 정지 명령 / 기지 복귀 경로 없음 | 이동 명령 중단 (경로 없음이면 경보) → 정지 |
 
 ```
-function on_command(cmd, now):
-    if cmd.kind == "add":
-        if terrain.in_bounds(cmd.cell) and not terrain.is_obstacle(cmd.cell):
-            scheduler.add_point(cmd.cell);  return [Status(state, info())]
-        return [Alarm("잘못된 순찰 지점")]                                # NFR-04
-    if cmd.kind == "remove":
-        if scheduler.remove_point(cmd.pid): return [Status(state, info())]
-        return [Alarm("없는 지점 ID")]
-    if cmd.kind == "start" and state in {IDLE, STOPPED}:
-        if len(scheduler) == 0 or pos is None or battery_wh is None:
-            return [Alarm("시작 조건 미충족")]
-        return start_next_target(now)
-    if cmd.kind == "stop" and state in {PATROLLING, REPLANNING, RETURNING}:
-        path = [];  return set_state(STOPPED)                           # 다음 칸 전달 중단
-    return []
-
-function start_next_target(now):                     # 목표 선정 + 경로 계획 (FR-09, 05, 06)
-    out = [];  failed = {}
-    loop:
-        p = scheduler.select_next(now, exclude = failed)
-        if p is None:                                # 모든 지점에 갈 수 없음
-            return out + [Alarm("경로 없음")] + set_state(IDLE)
-        new_path = planner.plan(pos, p.cell)
-        if new_path is None:
-            failed.add(p.pid);  out += [Alarm("경로 없음: " + p.pid)];  continue
-        target = p;  path = new_path;  idx = 0
-        return out + set_state(PATROLLING) + [PathUpdate(path)] + step()
-
 function on_pose(cell, now):
     pos = cell
     if state not in {PATROLLING, RETURNING}: return []
-    if idx + 1 < len(path) and pos == path[idx + 1]: idx += 1          # 한 칸 전진 확인
-    if pos == path[-1]:                                                # 경로 끝 도착
-        if state == RETURNING: return set_state(IDLE)                  # Status에 "복귀 완료" 포함
-        scheduler.mark_visited(target.pid, now)                        # FR-10
-        return start_next_target(now)
-    return step()
-
-function step():                                     # 다음 칸 전달 + 복귀 판단
-    if idx + 1 >= len(path): return []
+    if pos == path[idx + 1]: idx += 1
+    if pos == path[-1]:                                    # 경로 끝 도착
+        if state == RETURNING: return set_state(IDLE)
+        scheduler.mark_visited(target.pid, now)            # FR-10
+        return start_next_target(now)                      # 선정 + plan(), 실패 시 경보 후 다른 지점
     nxt = path[idx + 1]
-    if state == PATROLLING and energy.should_return(pos, battery_wh, nxt):   # FR-13, 14
-        return go_home()
-    return [NextCell(nxt)]                                             # FR-16
-
-function go_home():
-    home = energy.return_path(pos)
-    if home is None: return [Alarm("기지 복귀 경로 없음")] + set_state(STOPPED)
-    if len(home) == 1: return set_state(IDLE)                         # 이미 기지에 있음
-    path = home;  idx = 0;  target = None
-    return set_state(RETURNING) + [PathUpdate(path), NextCell(path[1])]
+    if state == PATROLLING and energy.should_return(pos, battery_wh, nxt):
+        return go_home()                                   # return_path() → 복귀 중 (FR-14)
+    return [NextCell(nxt)]                                 # FR-16
 
 function on_obstacles(cells, now):
-    added = terrain.add_obstacles(cells)                               # FR-11
-    if added is empty: return []
+    if terrain.add_obstacles(cells) is empty: return []
     energy.update_return_map()
-    if state not in {PATROLLING, RETURNING} or planner.is_path_valid(path, idx):
-        return []                                                      # 경로에 영향 없음
-    resume_state = state
-    out = set_state(REPLANNING)                                        # FR-12, 15
+    if state not in {PATROLLING, RETURNING} or planner.is_path_valid(path, idx): return []
+    resume_state = state;  out = set_state(REPLANNING)     # FR-12, 15
     if resume_state == RETURNING: return out + go_home()
     new_path = planner.plan(pos, target.cell)
-    if new_path is None:
-        return out + [Alarm("경로 없음: " + target.pid)] + start_next_target(now)
-    path = new_path;  idx = 0
-    return out + set_state(PATROLLING) + [PathUpdate(path)] + step()
-
-function set_state(s):
-    if s == state: return []
-    state = s
-    return [Status(s, info())]                       # 상태가 바뀔 때마다 출력 (FR-15)
+    if new_path is None: return out + [Alarm("경로 없음: " + target.pid)] + start_next_target(now)
+    path, idx = new_path, 0
+    return out + set_state(PATROLLING) + [PathUpdate(path), NextCell(path[1])]
 ```
 
-- 재계획 시간은 `planner.last_plan_ms`로 기록하고, 0.5초를 넘으면 로그에 경고를 남긴다(NFR-01 운용 중 감시).
-- drive_sim이 위치를 주기적으로 발행하므로, `on_pose()`가 제어기의 주기적인 실행 단위(tick) 역할을 한다.
-
-**(6) 단위 시험 항목**
-
-| ID | 시험 내용 | 기대 결과 | 요구사항 |
-|---|---|---|---|
-| UT-U5-01 | 지점 2개 등록, 위치·잔량 수신 후 start | 상태 순찰 중, Status·PathUpdate·NextCell 출력 | FR-08, 16 |
-| UT-U5-02 | 순찰 중 stop 후 위치 수신 | 상태 정지, 이후 NextCell 출력 없음 | FR-08 |
-| UT-U5-03 | 경로 끝 칸의 위치 수신 | 목표 지점 방문 시각 갱신, 다음 목표 경로 출력 | FR-10 |
-| UT-U5-04 | 경로 위 칸을 장애물로 보고 | Status(재계획 중) → Status(순찰 중), 새 경로가 장애물을 피함 | FR-11, 12 |
-| UT-U5-05 | 경로 밖 칸을 장애물로 보고 | 재계획 없음, 출력 없음 | FR-12 |
-| UT-U5-06 | 목표 지점 하나를 벽으로 고립, 이어서 모든 지점 고립 | Alarm("경로 없음: Pn") 후 다른 지점 선정. 모두 고립되면 Alarm("경로 없음")과 대기 상태 | FR-06 |
-| UT-U5-07 | 잔량을 복귀 임계값 근처로 두고 이동 | 상태 복귀 중, 경로의 끝이 기지 | FR-14 |
-| UT-U5-08 | 시작 → 장애물 → 배터리 부족 → 기지 도착 시나리오 | Status가 순찰 중 → 재계획 중 → 순찰 중 → 복귀 중 → 대기 순서로 모두 출력 | FR-15 |
-| UT-U5-09 | 범위 밖 지점 추가, 없는 ID 삭제, 지점 0개에서 start | 각각 Alarm 출력, 상태 유지, 예외 없음 | FR-07, NFR-04 |
+| ID | 시험 내용 → 기대 결과 | 요구사항 |
+|---|---|---|
+| UT-U5-01 | 지점 2개, 위치·잔량 수신 후 start → 순찰 중, Status·PathUpdate·NextCell 출력 | FR-08, 16 |
+| UT-U5-02 | 순찰 중 stop → 정지, 이후 NextCell 없음 | FR-08 |
+| UT-U5-03 | 경로 끝 칸 위치 수신 → 방문 시각 갱신, 다음 목표 경로 출력 | FR-10 |
+| UT-U5-04 | 경로 위 장애물 → 재계획 중 → 순찰 중, 새 경로가 장애물 회피. 경로 밖 장애물 → 출력 없음 | FR-11, 12 |
+| UT-U5-05 | 목표 고립 → "경로 없음: Pn" 후 다른 지점. 모두 고립 → 경보, 대기 | FR-06 |
+| UT-U5-06 | 잔량을 복귀 임계값 근처로 두고 이동 → 복귀 중, 경로 끝이 기지 | FR-14 |
+| UT-U5-07 | 시작 → 장애물 → 배터리 부족 → 기지 도착 → Status가 순찰 중 → 재계획 중 → 순찰 중 → 복귀 중 → 대기 순으로 출력 | FR-15 |
+| UT-U5-08 | 범위 밖 지점 추가, 없는 ID 삭제, 지점 0개에서 start → 각각 경보, 상태 유지, 예외 없음 | FR-07, NFR-04 |
 
 ## 4. 설계 결과 요약
 
-- **아키텍처:** 제어기 내부는 계층 모델(L1 지형 모델 → L2 경로 계획 → L3 임무 관리 → L4 인터페이스), 관제 화면은 MVC 모델, 지도 전처리는 파이프-필터 모델로 구성했다. 노드 간 통신은 ROS 2 토픽으로 한다(NFR-06).
-- **설계 방법:** 구조적 설계(DFD Level 0·1, 구조도)로 기능을 하향식으로 분해했고, 객체지향 설계(유스케이스, 클래스, 순차, 상태 다이어그램)로 객체와 행위를 정의한 뒤 산출물 간 일관성을 점검했다.
-- **설계 품질:** 모듈은 기능적·순차적·교환적 응집을 갖고, 모듈 간에는 데이터 결합만 사용한다. 모든 요구사항은 추적표(2.7절)로 설계 요소와 시험 항목에 연결된다.
-- **상세 설계:** 핵심 유닛 5개(U1~U5)의 자료 구조, 인터페이스, 알고리즘, 단위 시험 항목을 정의했다. 이로써 WBS 2.1과 2.2를 완료했다.
-- **다음 단계 (구현):** 계층 아래부터 U1 → U2 → U3·U4 → U5 → L4·시뮬레이션 노드 → visualizer 순서로 구현하고(WBS 3.2~3.7), 각 유닛을 구현한 직후 해당 단위 시험을 수행한다. 재계획 시간(UT-U2-06)과 에너지 모델 매개변수는 구현 후 측정해 설정값을 조정한다.
+- 제어기 내부는 계층 모델, 관제 화면은 MVC, 지도 전처리는 파이프-필터로 구성하고, 구조적 설계(DFD·구조도)와 객체지향 설계(UML 4종)로 구조와 행위를 정의했다. 이로써 WBS 2.1·2.2를 완료했다.
+- 모듈은 기능적·순차적·교환적 응집과 데이터 결합만 사용하며, 모든 요구사항이 추적표(2.6절)로 설계와 시험에 연결된다.
+- 구현은 계층 아래부터 U1 → U2 → U3·U4 → U5 → 노드 순서로 진행하고(WBS 3.2~3.7), 유닛마다 구현 직후 해당 단위 시험을 수행한다.
