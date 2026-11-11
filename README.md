@@ -17,15 +17,27 @@
 ## 실행 방법 (Ubuntu 24.04 + ROS 2 Jazzy, WSL2)
 
 ```bash
-bash scripts/setup_ros2_jazzy.sh          # 처음 한 번: ROS 2 설치
-bash scripts/build.sh                     # ~/ros2_ws에 빌드
-source ~/ros2_ws/install/setup.bash
-ros2 launch ugv_patrol_planner patrol.launch.py              # 다른 터미널에서: bash scripts/demo.sh
-ros2 launch ugv_patrol_planner patrol.launch.py scenario:=$(ros2 pkg prefix ugv_patrol_planner)/share/ugv_patrol_planner/scenarios/low_battery.yaml
-python3 -m pytest                         # 단위 시험 (ROS 2 없이도 실행 가능)
+bash scripts/setup_ros2_jazzy.sh     # 처음 한 번: ROS 2 설치
+bash scripts/build.sh                # ~/ros2_ws에 빌드
+bash scripts/run.sh                  # 제어기 + 시뮬레이션 + 2D 화면 + RViz2 실행 (배터리 부족: run.sh low_battery)
+bash scripts/demo.sh                 # 다른 터미널에서: 순찰 지점 등록 후 시작
+python3 -m pytest                    # 단위 시험 29개 (ROS 2 없이도 실행 가능)
+source ~/ros2_ws/install/setup.bash && python3 scripts/scenario_test.py   # 시나리오 시험 S1~S4
 ```
 
 지형은 아직 실제 DEM 대신 `tools/make_synthetic_dem.py`로 만든 시험용 지도(언덕 + 30°를 넘는 절벽)를 씁니다.
+
+## 검증 결과
+
+| 항목 | 결과 |
+|---|---|
+| 단위 시험 (U1~U5) | 29개 통과 |
+| 시나리오 시험 (실제 ROS 2 실행) | S1 정상 순찰, S2 장애물 발견, S3 배터리 부족, S4 비정상 입력 모두 통과 |
+| 재계획 시간 (100×100 지도) | 평균 약 50 ms (요구사항 0.5초 이내) |
+
+## 개발 방식
+
+요구사항, 설계(아키텍처·유닛 설계), 시험 기준은 직접 정의했고, 구현에는 AI 코딩 도구(Claude Code)를 활용했습니다. 모든 기능은 위의 단위 시험과 시나리오 시험으로 검증했으며, 시험 과정에서 발견한 성능 문제(재계획 지연)와 버그는 원인을 분석해 수정했습니다.
 
 ## 문서
 
