@@ -87,6 +87,20 @@ class TerrainMap:
                 out.append(((r + dr, col + dc), cost))
         return out
 
+    def predecessors(self, c: Cell) -> list[Cell]:
+        """Cells v from which the move v -> c is traversable (used for reverse searches)."""
+        r, col = c
+        out = []
+        for d, (dr, dc) in enumerate(MOVES):
+            vr, vc = r - dr, col - dc
+            if 0 <= vr < self.n and 0 <= vc < self.n and self._cost[d][vr][vc] != math.inf:
+                out.append((vr, vc))
+        return out
+
+    def elevation_grid(self) -> list[list[float]]:
+        """Copy of all elevations as nested lists (fast scalar access)."""
+        return self._elev.tolist()
+
     def add_obstacles(self, cells: Iterable[Cell]) -> list[Cell]:
         """Register new in-bounds obstacles and return the newly added ones (FR-11).
         Out-of-range cells are ignored (NFR-04)."""

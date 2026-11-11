@@ -31,7 +31,12 @@ def of(outs, kind):
 
 
 def states(outs):
-    return [o.state for o in of(outs, Status)]
+    """State sequence from Status outputs, with repeats (e.g. new target, same state) collapsed."""
+    seq = []
+    for o in of(outs, Status):
+        if not seq or seq[-1] != o.state:
+            seq.append(o.state)
+    return seq
 
 
 def drive(mm, outs, now=1.0, battery=None, on_step=None, max_steps=500):
@@ -82,6 +87,9 @@ def test_ut_u5_03_arrival_updates_visit():
     assert mm.scheduler.get('P1').last_visit == 10
     assert mm.target.pid == 'P2'
     assert of(outs, PathUpdate)[0].path[-1] == (3, 3)
+    status = of(outs, Status)[0]                      # new target reported while still patrolling
+    assert status.info['target'] == 'P2'
+    assert status.info['points'][0]['last_visit'] == 10
 
 
 def test_ut_u5_04_obstacle_on_and_off_path():

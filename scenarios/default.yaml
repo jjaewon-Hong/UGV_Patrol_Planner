@@ -1,0 +1,8 @@
+# Default scenario (S1 + S2): normal patrol with obstacles the controller does not know in advance.
+start_cell: [0, 0]
+initial_battery_wh: 500.0
+# Only perception_sim knows these; the controller learns them when they come within the sensor radius.
+hidden_obstacles: [[0, 30], [1, 30], [2, 30], [3, 30], [4, 30], [5, 30], [6, 30], [7, 30],
+                   [8, 30], [9, 30], [10, 30], [11, 30], [12, 30], [13, 30], [14, 30], [15, 30]]
+# Points used by scripts/demo.sh
+patrol_points: [[15, 85], [85, 85], [85, 15]]

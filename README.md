@@ -14,6 +14,19 @@
 
 인식 센서, 배터리, 구동부는 ROS 2 시뮬레이션 노드로 대체하고, 결과는 OpenCV 화면과 RViz2로 확인합니다.
 
+## 실행 방법 (Ubuntu 24.04 + ROS 2 Jazzy, WSL2)
+
+```bash
+bash scripts/setup_ros2_jazzy.sh          # 처음 한 번: ROS 2 설치
+bash scripts/build.sh                     # ~/ros2_ws에 빌드
+source ~/ros2_ws/install/setup.bash
+ros2 launch ugv_patrol_planner patrol.launch.py              # 다른 터미널에서: bash scripts/demo.sh
+ros2 launch ugv_patrol_planner patrol.launch.py scenario:=$(ros2 pkg prefix ugv_patrol_planner)/share/ugv_patrol_planner/scenarios/low_battery.yaml
+python3 -m pytest                         # 단위 시험 (ROS 2 없이도 실행 가능)
+```
+
+지형은 아직 실제 DEM 대신 `tools/make_synthetic_dem.py`로 만든 시험용 지도(언덕 + 30°를 넘는 절벽)를 씁니다.
+
 ## 문서
 
 - [report1.md](report1.md) — 과제1: 프로젝트 관리 (범위, 이해관계자, 규모 산정, WBS)

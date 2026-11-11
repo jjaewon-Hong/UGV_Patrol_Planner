@@ -78,6 +78,10 @@ class MissionManager:
         self.pos: Optional[Cell] = None
         self.battery_wh: Optional[float] = None
 
+    def status(self) -> Status:
+        """Current state as a Status output (e.g. to publish once at start-up)."""
+        return self._status()
+
     # ---------------------------------------------------------------- events
     def on_command(self, cmd: Command, now: float) -> list[Output]:
         """Operator commands (FR-07, FR-08). Invalid input gives an alarm, never an exception (NFR-04)."""
@@ -156,7 +160,9 @@ class MissionManager:
                 out.append(Alarm(f'경로 없음: {p.pid}'))
                 continue
             self.target, self.path, self.idx = p, new_path, 0
-            return out + self._set_state(S.PATROLLING) + [PathUpdate(self.path)] + self._step()
+            # Report the new target and visit times even when the state stays "patrolling".
+            status = self._set_state(S.PATROLLING) or [self._status()]
+            return out + status + [PathUpdate(self.path)] + self._step()
 
     def _step(self) -> list[Output]:
         """Send the next cell, unless the battery says it is time to go home."""

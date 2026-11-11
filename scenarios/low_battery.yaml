@@ -1,0 +1,5 @@
+# Scenario S3: battery too low to finish the patrol; the controller must return to base in time.
+start_cell: [0, 0]
+initial_battery_wh: 30.0
+hidden_obstacles: []
+patrol_points: [[15, 85], [85, 85], [85, 15]]

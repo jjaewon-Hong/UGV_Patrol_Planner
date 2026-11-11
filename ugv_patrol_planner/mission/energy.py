@@ -24,6 +24,7 @@ class EnergyMonitor:
         self.wh_per_m = cfg.wh_per_m
         self.wh_per_climb_m = cfg.wh_per_climb_m
         self.margin = cfg.return_margin
+        self._h = terrain.elevation_grid()
         self._ret = np.full((terrain.n, terrain.n), math.inf)
         self.update_return_map()
 
@@ -33,23 +34,26 @@ class EnergyMonitor:
     def update_return_map(self) -> None:
         """R[c] = minimum energy from c back to base. Reverse Dijkstra from the base, so the
         uphill/downhill asymmetry is handled. Call at start and when obstacles change (FR-13)."""
+        # Plain lists instead of numpy indexing: this runs after every new obstacle and must be fast.
         t = self._terrain
-        R = np.full((t.n, t.n), math.inf)
-        R[self.base] = 0.0
-        heap = [(0.0, self.base)]
+        h = self._h
+        flat = self.wh_per_m * t.cell_size
+        climb = self.wh_per_climb_m
+        R = [[math.inf] * t.n for _ in range(t.n)]
+        br, bc = self.base
+        R[br][bc] = 0.0
+        heap = [(0.0, br, bc)]
         while heap:
-            d, u = heapq.heappop(heap)
-            if d > R[u]:
+            d, r, c = heapq.heappop(heap)
+            if d > R[r][c]:
                 continue
-            for dr, dc in MOVES:
-                v = (u[0] + dr, u[1] + dc)
-                if not t.in_bounds(v) or not t.is_traversable(v, u):  # need a v -> u move
-                    continue
-                nd = d + self.energy_step(v, u)
-                if nd < R[v]:
-                    R[v] = nd
-                    heapq.heappush(heap, (nd, v))
-        self._ret = R
+            hu = h[r][c]
+            for vr, vc in t.predecessors((r, c)):  # cells that can move into (r, c)
+                nd = d + flat + climb * max(0.0, hu - h[vr][vc])  # = energy_step(v, u)
+                if nd < R[vr][vc]:
+                    R[vr][vc] = nd
+                    heapq.heappush(heap, (nd, vr, vc))
+        self._ret = np.array(R)
 
     def return_energy(self, c: Cell) -> float:
         return float(self._ret[c])

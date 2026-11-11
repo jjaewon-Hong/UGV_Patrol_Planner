@@ -28,6 +28,7 @@ echo "== 4/5 load ROS 2 in every new terminal =="
 grep -q 'source /opt/ros/jazzy/setup.bash' ~/.bashrc || echo 'source /opt/ros/jazzy/setup.bash' >> ~/.bashrc
 
 echo "== 5/5 check =="
+set +u  # ROS setup files read unset variables
 source /opt/ros/jazzy/setup.bash
 echo "ROS_DISTRO=${ROS_DISTRO}"
 ros2 --help > /dev/null && echo "ros2 command OK"
