@@ -1,0 +1,19 @@
+# All tunable values (NFR-05). Numbers are assumptions; adjust after testing.
+map:
+  dem_file: data/dem_100x100.npy   # output of tools/prepare_dem.py
+  size: 100                        # N (N x N grid)
+  cell_size_m: 30.0
+  static_obstacles: [[40, 41], [40, 42]]
+terrain:
+  max_slope_deg: 30.0              # max climbable slope
+  slope_weight: 2.0                # slope cost weight
+sensor:
+  radius_cells: 3
+energy:
+  capacity_wh: 500.0
+  wh_per_m: 0.01                   # energy per metre moved
+  wh_per_climb_m: 0.5              # extra energy per metre climbed
+  return_margin: 1.2               # keep 20% extra for returning to base
+mission:
+  base_cell: [0, 0]
+  replan_time_limit_s: 0.5
