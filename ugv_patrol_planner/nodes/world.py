@@ -25,7 +25,8 @@ def load_world(node: Node) -> tuple[Config, TerrainMap, dict]:
     node.declare_parameter('config', share_path('config', 'params.yaml'))
     node.declare_parameter('scenario', share_path('scenarios', 'default.yaml'))
     cfg = load_config(_resolve(node.get_parameter('config').value))
-    terrain = TerrainMap.from_file(_resolve(cfg.dem_file), cfg)
+    terrain = TerrainMap.from_file(_resolve(cfg.dem_file), cfg,
+                                   _resolve(cfg.obstacle_file) if cfg.obstacle_file else '')
     with open(_resolve(node.get_parameter('scenario').value), encoding='utf-8') as f:
         scenario = yaml.safe_load(f) or {}
     return cfg, terrain, scenario

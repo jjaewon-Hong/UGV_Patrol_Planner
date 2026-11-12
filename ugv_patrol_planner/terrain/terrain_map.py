@@ -31,12 +31,21 @@ class TerrainMap:
         self.add_obstacles(obstacles)
 
     @classmethod
-    def from_file(cls, path: str, cfg: Config) -> 'TerrainMap':
-        """Load an N x N elevation array (.npy) and register static obstacles (FR-01, FR-02)."""
+    def from_file(cls, path: str, cfg: Config, obstacle_path: str = '') -> 'TerrainMap':
+        """Load an N x N elevation array (.npy) and register static obstacles (FR-01, FR-02).
+
+        `obstacle_path` is an optional N x N bool array, e.g. the recognised campus obstacles (FR-20).
+        """
         elev = np.load(path)
         if elev.shape != (cfg.map_size, cfg.map_size):
             raise ValueError(f'expected {cfg.map_size} x {cfg.map_size} map, got {elev.shape}')
-        return cls(elev, cfg, cfg.static_obstacles)
+        obstacles = list(cfg.static_obstacles)
+        if obstacle_path:
+            grid = np.load(obstacle_path)
+            if grid.shape != elev.shape:
+                raise ValueError(f'obstacle grid {grid.shape} does not match map {elev.shape}')
+            obstacles += [(int(r), int(c)) for r, c in zip(*np.nonzero(grid))]
+        return cls(elev, cfg, obstacles)
 
     def _build_costs(self) -> list:
         n, e = self.n, self._elev

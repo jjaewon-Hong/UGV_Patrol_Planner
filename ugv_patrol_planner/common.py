@@ -26,6 +26,7 @@ class MissionState(Enum):
 class Config:
     """Read-only settings (config/params.yaml). Passed to each unit at construction."""
     dem_file: str = 'data/dem_100x100.npy'
+    obstacle_file: str = ''          # optional N x N bool grid of known obstacles (FR-20)
     map_size: int = 100
     cell_size_m: float = 30.0
     static_obstacles: tuple[Cell, ...] = field(default_factory=tuple)
@@ -51,6 +52,7 @@ def load_config(path: str) -> Config:
     d = Config()
     return Config(
         dem_file=m.get('dem_file', d.dem_file),
+        obstacle_file=m.get('obstacle_file', d.obstacle_file) or '',
         map_size=int(m.get('size', d.map_size)),
         cell_size_m=float(m.get('cell_size_m', d.cell_size_m)),
         static_obstacles=tuple(tuple(c) for c in m.get('static_obstacles', [])),

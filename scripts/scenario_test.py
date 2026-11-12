@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Scenario tests S1~S4 on the real ROS 2 system (report 2, section 4.4).
+"""Scenario tests S1~S5 on the real ROS 2 system (report 2, section 4.4).
 
 Starts the launch file for each scenario (no GUI, faster drive), drives it through the
 operator command topic, watches the topics, and prints pass/fail per scenario.
@@ -103,7 +103,7 @@ class System:
         path = os.path.join(SHARE, 'scenarios', f'{scenario}.yaml')
         self.proc = subprocess.Popen(
             ['ros2', 'launch', 'ugv_patrol_planner', 'patrol.launch.py', 'gui:=false',
-             f'drive_rate:={DRIVE_RATE}', f'scenario:={path}'],
+             f'drive_rate:={DRIVE_RATE}', f'scenario:={path}', f'config:={config_path(scenario)}'],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
     def stop(self):
@@ -112,6 +112,12 @@ class System:
             self.proc.wait(timeout=10)
         except (subprocess.TimeoutExpired, ProcessLookupError):
             os.killpg(self.proc.pid, signal.SIGKILL)
+
+
+def config_path(scenario) -> str:
+    """config/<scenario>.yaml when it exists (e.g. campus), otherwise config/params.yaml."""
+    path = os.path.join(SHARE, 'config', f'{scenario}.yaml')
+    return path if os.path.exists(path) else os.path.join(SHARE, 'config', 'params.yaml')
 
 
 def run(scenario, body):
@@ -200,11 +206,35 @@ def s4(p: Probe):
     return {'S4 비정상 입력': (ok, f'경보 {alarms}개 (기대 5개 이상), 이후 정상 순찰 시작 {"예" if alive else "아니오"}')}
 
 
+def s5(p: Probe):
+    """Campus map: random flags are reproducible, all visited, no obstacle cell entered (FR-20~22)."""
+    import yaml
+    from ugv_patrol_planner.common import load_config
+    from ugv_patrol_planner.mission.flags import scenario_points
+    from ugv_patrol_planner.terrain.terrain_map import TerrainMap
+
+    cfg = load_config(config_path('campus'))
+    terrain = TerrainMap.from_file(os.path.join(SHARE, cfg.dem_file), cfg, os.path.join(SHARE, cfg.obstacle_file))
+    with open(os.path.join(SHARE, 'scenarios', 'campus.yaml'), encoding='utf-8') as f:
+        scenario = yaml.safe_load(f)
+    flags = scenario_points(terrain, cfg.base_cell, scenario)
+    same = flags == scenario_points(terrain, cfg.base_cell, scenario)
+    for r, c in flags:
+        p.send(f'add {r} {c}')
+    p.send('start')
+    p.spin_until(120, lambda: len(p.visit_counts()) == len(flags))
+    counts = p.visit_counts()
+    entered = sorted({c for c in p.poses if terrain.is_obstacle(c)})
+    ok = same and len(counts) == len(flags) and not entered
+    return {'S5 캠퍼스 순찰': (ok, f'깃발 {flags} (같은 시드 재현 {"예" if same else "아니오"}), '
+                               f'방문 {dict(sorted(counts.items()))}, 장애물 칸 진입 {len(entered)}개')}
+
+
 def main():
     rclpy.init()
     results = {}
     try:
-        plan = [('default', s1_s2), ('low_battery', s3), ('default', s4)]
+        plan = [('default', s1_s2), ('low_battery', s3), ('default', s4), ('campus', s5)]
         only = sys.argv[1:]  # e.g. `scenario_test.py s1_s2` runs only that one
         for scenario, body in [x for x in plan if not only or x[1].__name__ in only]:
             print(f'running {body.__doc__.splitlines()[0]}', flush=True)

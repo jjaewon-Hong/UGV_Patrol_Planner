@@ -3,8 +3,8 @@
 고도 정보가 있는 격자 지형에서 무인 지상 차량(UGV)의 순찰 경로를 계획하는 제어기를, 실제 차량 없이 ROS 2 시뮬레이션으로 검증하는 소프트웨어공학 프로젝트입니다. 시험용 지형에서 검증을 마쳤고, 지금은 **실제 지역(영남대 경산캠퍼스)의 항공 정사영상에서 장애물을 인식해 만든 지도**로 순찰하도록 확장하고 있습니다.
 
 ```
-항공 정사영상 → 이어 붙이기·자르기 → 장애물 인식(분할 모델) → 장애물 격자 ┐
-DEM(고도)     → 자르기·리샘플링 ────────────────────────────→ 고도 격자   ┴→ ROS 2 순찰 제어기 (A*, 재계획, 기지 복귀)
+항공 정사영상 → 이어 붙이기·자르기 → 좌표 보정(OSM) → 장애물 인식(PyTorch 분할 모델) → 장애물 격자 ┐
+DEM(고도)     → 같은 10 m 격자로 리샘플링 ──────────────────────────────────────────→ 고도 격자   ┴→ ROS 2 순찰 제어기 (A*, 재계획, 기지 복귀)
 ```
 
 ## 진행 현황
@@ -13,8 +13,8 @@ DEM(고도)     → 자르기·리샘플링 ────────────
 |---|---|---|
 | 1 | 요구사항·설계 (report1\~3), 핵심 유닛 U1\~U5, ROS 2 노드, 단위·시나리오 시험 | 완료 |
 | 2 | 캠퍼스 정사영상 확보, 이어 붙이기·자르기 (`tools/prepare_ortho.py`) | 완료 |
-| 3 | 장애물 인식 모델 학습 (공개 항공영상 분할 데이터셋) 및 캠퍼스 지도 생성, 정답 지도(OSM)와 IoU 비교 | 예정 |
-| 4 | 고도 데이터 정합, 깃발 무작위 배치, 캠퍼스 시나리오 S5 | 예정 |
+| 3 | 장애물 인식: PyTorch DeepLabV3를 LoveDA로 학습해 캠퍼스 추론 (`notebooks/`), OSM 정답 지도와 IoU 비교 (`tools/campus_map.py`) | 진행 중 (학습 대기) |
+| 4 | 좌표 보정, 고도 데이터 정합, 깃발 무작위 배치, 캠퍼스 시나리오 S5 | 완료 (지금은 OSM 장애물 지도 사용, 학습 후 모델 지도로 교체) |
 | 5 | 핵심 알고리즘 C++17 포팅, Docker·GitHub Actions 자동 시험 | 예정 |
 
 ## 무엇을 시험하나
@@ -34,27 +34,31 @@ DEM(고도)     → 자르기·리샘플링 ────────────
 ```bash
 bash scripts/setup_ros2_jazzy.sh     # 처음 한 번: ROS 2 설치
 bash scripts/build.sh                # ~/ros2_ws에 빌드
-bash scripts/run.sh                  # 제어기 + 시뮬레이션 + 2D 화면 + RViz2 실행 (배터리 부족: run.sh low_battery)
-bash scripts/demo.sh                 # 다른 터미널에서: 순찰 지점 등록 후 시작
-python3 -m pytest                    # 단위 시험 29개 (ROS 2 없이도 실행 가능)
-source ~/ros2_ws/install/setup.bash && python3 scripts/scenario_test.py   # 시나리오 시험 S1~S4
+bash scripts/run.sh                  # 제어기 + 시뮬레이션 + 2D 화면 + RViz2 실행 (run.sh low_battery, run.sh campus)
+bash scripts/demo.sh                 # 다른 터미널에서: 순찰 지점 등록 후 시작 (run.sh와 같은 이름, 예: demo.sh campus)
+python3 -m pytest                    # 단위 시험 59개 (ROS 2 없이도 실행 가능)
+source ~/ros2_ws/install/setup.bash && python3 scripts/scenario_test.py   # 시나리오 시험 S1~S5
 ```
 
-지형은 아직 실제 DEM 대신 `tools/make_synthetic_dem.py`로 만든 시험용 지도(언덕 + 30°를 넘는 절벽)를 씁니다.
+기본 지형은 `tools/make_synthetic_dem.py`로 만든 시험용 지도(언덕 + 30°를 넘는 절벽)이고, `campus`는 영남대 캠퍼스 1 km × 1 km를 10 m 칸 100×100으로 만든 지도입니다. 캠퍼스에서는 기지에서 갈 수 있는 빈 칸에 깃발 3개를 시드로 무작위 배치합니다.
 
 ## 데이터
 
 | 데이터 | 출처 | 비고 |
 |---|---|---|
 | 항공 정사영상 (2025, 25 cm, 도엽 35804061·35804071) | 국토지리정보원 국토정보플랫폼 | 원본은 용량과 이용 조건 때문에 저장소에 넣지 않음. `tools/prepare_ortho.py`로 캠퍼스 1.02 km × 1.53 km를 잘라 사용 |
+| 고도 (Copernicus GLO-30 DEM) | © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA | 캠퍼스 범위를 10 m 격자로 리샘플링해 `data/campus_osm/dem.npy`에 포함 (`tools/campus_world.py`) |
+| 건물·물·숲 윤곽 | © OpenStreetMap contributors (ODbL) | 좌표 보정과 정답 지도에 사용, 10 m 장애물 격자를 `data/campus_osm/obstacles.npy`에 포함 (`tools/osm_mask.py`) |
+| 학습 데이터 (LoveDA) | Wang et al., NeurIPS 2021, Zenodo 5706578 | Kaggle 노트북에서 내려받아 학습에만 사용 |
 | 시험용 지형 | `tools/make_synthetic_dem.py` | 저장소의 `data/`에 포함 |
 
 ## 검증 결과
 
 | 항목 | 결과 |
 |---|---|
-| 단위 시험 (U1\~U5) | 29개 통과 |
-| 시나리오 시험 (실제 ROS 2 실행) | S1 정상 순찰, S2 장애물 발견, S3 배터리 부족, S4 비정상 입력 모두 통과 |
+| 단위 시험 (U1\~U5, 깃발 배치, 좌표 변환) | 59개 통과 |
+| 시나리오 시험 (실제 ROS 2 실행) | S1 정상 순찰, S2 장애물 발견, S3 배터리 부족, S4 비정상 입력, S5 캠퍼스 순찰 모두 통과 |
+| 정사영상 좌표 보정 | 도엽 번호로 위치를 계산한 뒤 OSM 건물 윤곽에 맞춰 13 m 보정 |
 | 재계획 시간 (100×100 지도) | 평균 약 50 ms (요구사항 0.5초 이내) |
 
 ## 개발 방식

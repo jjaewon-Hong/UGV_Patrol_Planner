@@ -1,0 +1,9 @@
+# S5 campus patrol (FR-20~22): campus map, 3 flags placed at random on reachable free cells.
+# Use with config/campus.yaml (scripts/run.sh campus picks it automatically).
+start_cell: [42, 30]
+initial_battery_wh: 500.0
+hidden_obstacles: []
+random_flags:
+  count: 3
+  seed: 7
+  min_spacing: 20     # cells (Manhattan) between flags and from the base

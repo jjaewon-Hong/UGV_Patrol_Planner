@@ -33,7 +33,7 @@ class Visualizer(Node):
         self.snapshot = str(self.get_parameter('snapshot').value)
         self.n = self.terrain.n
         self.elev = np.array([[self.terrain.elevation((r, c)) for c in range(self.n)] for r in range(self.n)])
-        self.obstacles = {tuple(c) for c in self.cfg.static_obstacles}
+        self.obstacles = {(r, c) for r in range(self.n) for c in range(self.n) if self.terrain.is_obstacle((r, c))}
         self.path: list = []
         self.pos = None
         self.status: dict = {}
@@ -91,8 +91,8 @@ class Visualizer(Node):
         cv2.rectangle(img, (max(bx - 6, 0), max(by - 6, 0)), (bx + 6, by + 6), CYAN, 2)  # base, kept on screen
         for p in self.status.get('points', []):
             x, y = self._px(tuple(p['cell']))
-            cv2.circle(img, (x, y), 6, YELLOW, -1 if p['pid'] == self.status.get('target') else 2)
-            cv2.putText(img, p['pid'], (x + 7, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, YELLOW, 1)
+            self._flag(img, x, y, p['pid'] == self.status.get('target'))
+            cv2.putText(img, p['pid'], (x + 12, y - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.4, YELLOW, 1)
         if self.pos is not None:
             cv2.circle(img, self._px(self.pos), 5, GREEN, -1)
         # Status bar above the map (not on top of it), so row 0 stays visible.
@@ -104,6 +104,14 @@ class Visualizer(Node):
         cv2.putText(bar, f"state: {names.get(state, state)}   target: {self.status.get('target') or '-'}"
                     f"   battery: {battery}", (6, 16), cv2.FONT_HERSHEY_SIMPLEX, 0.45, WHITE, 1)
         return np.vstack([bar, img])
+
+    @staticmethod
+    def _flag(img, x, y, active):
+        """Patrol point as a small flag: pole from the cell centre, pennant at the top."""
+        cv2.line(img, (x, y), (x, y - 16), WHITE, 2)
+        pennant = np.array([[x + 1, y - 16], [x + 12, y - 12], [x + 1, y - 8]], dtype=np.int32)
+        cv2.fillPoly(img, [pennant], YELLOW)
+        cv2.polylines(img, [pennant], True, RED if active else (0, 0, 0), 2 if active else 1)  # current target
 
     def draw(self):
         if self.gui:
@@ -144,15 +152,15 @@ class Visualizer(Node):
         obs = self._marker(1, Marker.CUBE_LIST, cs, cs, cs, (0.9, 0.15, 0.15, 1))
         obs.points = [self._xyz(c, cs / 2) for c in self.obstacles]
         out.markers.append(obs)
-        path = self._marker(2, Marker.LINE_STRIP, 8.0, 0, 0, (0.1, 0.45, 0.9, 1))
-        path.points = [self._xyz(c, 5.0) for c in self.path]
+        path = self._marker(2, Marker.LINE_STRIP, cs / 4, 0, 0, (0.1, 0.45, 0.9, 1))
+        path.points = [self._xyz(c, cs / 6) for c in self.path]
         out.markers.append(path)
-        pts = self._marker(3, Marker.SPHERE_LIST, 30, 30, 30, (1, 0.8, 0, 1))
-        pts.points = [self._xyz(tuple(p['cell']), 15.0) for p in self.status.get('points', [])]
+        pts = self._marker(3, Marker.SPHERE_LIST, cs, cs, cs, (1, 0.8, 0, 1))
+        pts.points = [self._xyz(tuple(p['cell']), cs / 2) for p in self.status.get('points', [])]
         out.markers.append(pts)
         if self.pos is not None:
-            ugv = self._marker(4, Marker.SPHERE, 40, 40, 40, (0.2, 0.85, 0.2, 1))
-            ugv.pose.position = self._xyz(self.pos, 20.0)
+            ugv = self._marker(4, Marker.SPHERE, 1.3 * cs, 1.3 * cs, 1.3 * cs, (0.2, 0.85, 0.2, 1))
+            ugv.pose.position = self._xyz(self.pos, 0.7 * cs)
             out.markers.append(ugv)
         self.pub_markers.publish(out)
 
