@@ -1,0 +1,21 @@
+# Yeungnam University campus, 1 km x 1 km (FR-20, FR-21). Built by tools/campus_world.py.
+# Obstacles: OpenStreetMap buildings / water / forest (reference map, compare with config/campus.yaml).
+map:
+  dem_file: data/campus_osm/dem.npy              # Copernicus GLO-30, resampled to 10 m cells
+  obstacle_file: data/campus_osm/obstacles.npy   # cell is an obstacle when >= 30 % of it is building/water/forest
+  size: 100
+  cell_size_m: 10.0
+  static_obstacles: []
+terrain:
+  max_slope_deg: 30.0
+  slope_weight: 2.0
+sensor:
+  radius_cells: 3
+energy:
+  capacity_wh: 500.0
+  wh_per_m: 0.01
+  wh_per_climb_m: 0.5
+  return_margin: 1.2
+mission:
+  base_cell: [42, 30]          # on the main boulevard
+  replan_time_limit_s: 0.5

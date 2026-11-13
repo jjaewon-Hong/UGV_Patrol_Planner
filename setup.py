@@ -16,6 +16,7 @@ setup(
         ('share/' + package_name + '/scenarios', glob('scenarios/*.yaml')),
         ('share/' + package_name + '/data', glob('data/*.npy')),
         ('share/' + package_name + '/data/campus_osm', glob('data/campus_osm/*.npy')),
+        ('share/' + package_name + '/data/campus_pred', glob('data/campus_pred/*.npy')),
         ('share/' + package_name + '/rviz', glob('rviz/*.rviz')),
     ],
     install_requires=['setuptools'],

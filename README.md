@@ -13,8 +13,8 @@ DEM(고도)     → 같은 10 m 격자로 리샘플링 ────────�
 |---|---|---|
 | 1 | 요구사항·설계 (report1\~3), 핵심 유닛 U1\~U5, ROS 2 노드, 단위·시나리오 시험 | 완료 |
 | 2 | 캠퍼스 정사영상 확보, 이어 붙이기·자르기 (`tools/prepare_ortho.py`) | 완료 |
-| 3 | 장애물 인식: PyTorch DeepLabV3를 LoveDA로 학습해 캠퍼스 추론 (`notebooks/`), OSM 정답 지도와 IoU 비교 (`tools/campus_map.py`) | 진행 중 (학습 대기) |
-| 4 | 좌표 보정, 고도 데이터 정합, 깃발 무작위 배치, 캠퍼스 시나리오 S5 | 완료 (지금은 OSM 장애물 지도 사용, 학습 후 모델 지도로 교체) |
+| 3 | 장애물 인식: PyTorch DeepLabV3를 LoveDA로 학습해 캠퍼스 추론 (`notebooks/`), OSM 정답 지도와 IoU 비교 (`tools/campus_map.py`) | 완료 (NFR-08 기준 미달, 아래 검증 결과 참고) |
+| 4 | 좌표 보정, 고도 데이터 정합, 깃발 무작위 배치, 캠퍼스 시나리오 S5 | 완료 (`campus`: 모델 지도, `campus_osm`: OSM 지도) |
 | 5 | 핵심 알고리즘 C++17 포팅, Docker·GitHub Actions 자동 시험 | 예정 |
 
 ## 무엇을 시험하나
@@ -34,7 +34,7 @@ DEM(고도)     → 같은 10 m 격자로 리샘플링 ────────�
 ```bash
 bash scripts/setup_ros2_jazzy.sh     # 처음 한 번: ROS 2 설치
 bash scripts/build.sh                # ~/ros2_ws에 빌드
-bash scripts/run.sh                  # 제어기 + 시뮬레이션 + 2D 화면 + RViz2 실행 (run.sh low_battery, run.sh campus)
+bash scripts/run.sh                  # 제어기 + 시뮬레이션 + 2D 화면 + RViz2 실행 (run.sh low_battery, run.sh campus, run.sh campus_osm)
 bash scripts/demo.sh                 # 다른 터미널에서: 순찰 지점 등록 후 시작 (run.sh와 같은 이름, 예: demo.sh campus)
 python3 -m pytest                    # 단위 시험 59개 (ROS 2 없이도 실행 가능)
 source ~/ros2_ws/install/setup.bash && python3 scripts/scenario_test.py   # 시나리오 시험 S1~S5
@@ -59,6 +59,16 @@ source ~/ros2_ws/install/setup.bash && python3 scripts/scenario_test.py   # 시�
 | 단위 시험 (U1\~U5, 깃발 배치, 좌표 변환) | 59개 통과 |
 | 시나리오 시험 (실제 ROS 2 실행) | S1 정상 순찰, S2 장애물 발견, S3 배터리 부족, S4 비정상 입력, S5 캠퍼스 순찰 모두 통과 |
 | 정사영상 좌표 보정 | 도엽 번호로 위치를 계산한 뒤 OSM 건물 윤곽에 맞춰 13 m 보정 |
+| 분할 모델 학습 (LoveDA 검증 세트) | mIoU 0.511 (15에폭, Kaggle T4 2시간 18분), 건물 0.63, 물 0.69, 숲 0.38 |
+| 캠퍼스 인식 vs OSM (NFR-08, 기준 0.6) | 건물+숲 IoU 0.44, 건물 0.37, 숲 0.43 → **미달** |
+| 캠퍼스 모델 지도 순찰 (S5) | 장애물 칸 48 %, 깃발 3개 모두 방문, 장애물 칸 진입 0회 |
+
+NFR-08 미달 원인 분석 (`tools/campus_map.py eval` 결과를 나눠 본 값):
+- **정답 지도(OSM)가 불완전함:** 모델이 찾은 숲의 48 %는 가로수·작은 숲으로 OSM에 없고, 모델이 찾은 건물의 49 %도 OSM에 없는 곳(누락 건물, 지붕 가장자리)입니다. OSM 숲 안의 27 %는 실제로는 풀밭·빈터입니다.
+- **학습 데이터와 지역 차이:** LoveDA는 중국 도시 영상이라, OSM 건물 면적 중 모델이 찾은 비율(재현율)은 0.58에 그칩니다.
+- **남은 위치 오차:** 예측과 OSM 건물 사이에 약 7 m 어긋남이 남아 있으며, 보정하면 건물 IoU가 0.37에서 0.40으로 오릅니다.
+
+다음 단계: 캠퍼스 일부를 직접 라벨링한 검증 영역으로 정답을 보완하고, 국내 항공영상 데이터로 미세 조정합니다.
 | 재계획 시간 (100×100 지도) | 평균 약 50 ms (요구사항 0.5초 이내) |
 
 ## 개발 방식

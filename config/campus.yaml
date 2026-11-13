@@ -1,8 +1,9 @@
 # Yeungnam University campus, 1 km x 1 km (FR-20, FR-21). Built by tools/campus_world.py.
-# Obstacles: OSM buildings / water / forest for now; replaced by the trained model's grid (data/campus_pred).
+# Obstacles: recognised by the segmentation model (notebooks/campus_segmentation.ipynb).
+# config/campus_osm.yaml is the same area with OpenStreetMap obstacles, for comparison.
 map:
-  dem_file: data/campus_osm/dem.npy              # Copernicus GLO-30, resampled to 10 m cells
-  obstacle_file: data/campus_osm/obstacles.npy   # cell is an obstacle when >= 30 % of it is building/water/forest
+  dem_file: data/campus_pred/dem.npy             # Copernicus GLO-30, resampled to 10 m cells
+  obstacle_file: data/campus_pred/obstacles.npy   # cell is an obstacle when >= 30 % of it is building/water/forest
   size: 100
   cell_size_m: 10.0
   static_obstacles: []
