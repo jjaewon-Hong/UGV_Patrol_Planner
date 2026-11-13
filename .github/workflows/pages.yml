@@ -1,0 +1,57 @@
+name: Web demo
+
+# Builds the web demo (C++ core as WebAssembly + maps), checks it in Node, and publishes web/ on GitHub Pages.
+# Needs once: repository Settings > Pages > Source = "GitHub Actions".
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  EMSDK_VERSION: 7.0.0   # the version the demo was built and tested with
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python packages for the map export
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends python3-numpy python3-yaml
+      - name: Emscripten SDK (cached)
+        uses: actions/cache@v4
+        with:
+          path: ~/emsdk
+          key: emsdk-${{ env.EMSDK_VERSION }}
+      - name: Install the Emscripten SDK
+        run: bash scripts/setup_emsdk.sh "$EMSDK_VERSION"
+      - name: Native ugv_plan (reference for the WebAssembly check)
+        run: |
+          cmake -S cpp -B build_cpp -DCMAKE_BUILD_TYPE=Release -DUGV_BUILD_TESTS=OFF -DUGV_BUILD_NODE=OFF
+          cmake --build build_cpp --target ugv_plan -j
+      - name: Build the web demo
+        run: bash scripts/build_web.sh
+      - name: Check the WebAssembly module (scenarios S1~S5, same A* path as native)
+        run: bash scripts/test_web.sh
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

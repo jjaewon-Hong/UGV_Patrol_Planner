@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UGV 순찰 경로 계획 제어기 · 웹 데모</title>
+  <meta name="description" content="2.5D 지형에서 UGV 순찰 경로를 계획하는 ROS 2 제어기를 브라우저에서 바로 돌려 보는 데모. C++ 핵심 코드를 WebAssembly로 실행합니다.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-row">
+      <div>
+        <p class="eyebrow">ROS 2 · C++17 · WebAssembly</p>
+        <h1>UGV 순찰 경로 계획 제어기</h1>
+        <p class="lead">고도가 있는 지형에서 무인 지상 차량의 순찰 경로를 계획합니다. 아래 지도는 영상이 아니라,
+          시험을 통과한 C++ 핵심 코드가 <strong>지금 이 브라우저에서</strong> 돌고 있는 것입니다.</p>
+      </div>
+      <nav class="top-links" aria-label="바로가기">
+        <a class="btn" href="https://github.com/jjaewon-Hong/ugv_patrol_planner">GitHub 저장소</a>
+        <a class="btn ghost" href="#how">어떻게 도는가</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="demo" aria-label="데모">
+      <div class="demo-grid">
+        <div class="stage card">
+          <div class="toolbar">
+            <div class="seg" id="map-tabs" role="tablist" aria-label="지도 선택"></div>
+            <div class="seg" id="view-tabs" role="tablist" aria-label="보기 방식">
+              <button type="button" data-view="2d" class="on">2D</button>
+              <button type="button" data-view="3d">3D</button>
+            </div>
+          </div>
+          <p class="map-about" id="map-about">지도를 불러오는 중입니다…</p>
+
+          <div class="canvas-wrap" id="canvas-wrap">
+            <canvas id="map2d" width="800" height="800" aria-label="순찰 지도"></canvas>
+            <div id="map3d" hidden></div>
+            <div id="loading" class="overlay-msg">WebAssembly 모듈을 불러오는 중…</div>
+            <div id="fallback" class="overlay-msg" hidden>
+              <p><strong>이 브라우저에서는 데모를 실행할 수 없습니다.</strong></p>
+              <p id="fallback-reason"></p>
+              <p>대신 ROS 2에서 실행한 화면입니다.</p>
+              <img src="img/run_2d.png" alt="ROS 2에서 실행한 2D 화면">
+            </div>
+          </div>
+
+          <div class="mode-row">
+            <span class="label">지도를 클릭하면</span>
+            <div class="seg" id="mode-tabs" role="tablist" aria-label="클릭 모드">
+              <button type="button" data-mode="flag" class="on">깃발 놓기</button>
+              <button type="button" data-mode="obstacle">장애물 놓기</button>
+              <button type="button" data-mode="plan">경로 탐색</button>
+            </div>
+          </div>
+          <p class="hint" id="mode-hint"></p>
+          <p class="readout" id="plan-readout" hidden></p>
+          <p class="readout muted" id="hover-readout">지도 위에 마우스를 올리면 칸 정보가 보입니다.</p>
+
+          <ul class="legend" aria-label="범례">
+            <li><i style="background:rgb(220,40,40)"></i>건물</li>
+            <li><i style="background:rgb(40,150,50)"></i>나무</li>
+            <li><i style="background:rgb(90,190,230)"></i>물</li>
+            <li><i style="background:rgb(255,150,30)"></i>새로 알게 된 장애물</li>
+            <li><i class="dashed"></i>아직 모르는 장애물</li>
+            <li><i class="line" style="background:rgb(30,120,220)"></i>계획한 경로</li>
+            <li><i class="dot" style="background:rgb(230,60,230)"></i>UGV와 센서 범위</li>
+            <li><i class="box" style="border-color:rgb(0,200,200)"></i>기지</li>
+            <li><i style="background:rgb(255,210,0)"></i>순찰 깃발</li>
+            <li><i style="background:linear-gradient(90deg,#333,#eee)"></i>고도 (밝을수록 높음)</li>
+          </ul>
+        </div>
+
+        <aside class="panel">
+          <section class="card" aria-label="상태">
+            <div class="status-head">
+              <span class="badge" id="st-state">-</span>
+              <span id="st-target" class="muted"></span>
+              <span id="st-time" class="muted right"></span>
+            </div>
+            <div class="battery" title="세로선: 이 아래로 내려가면 기지로 복귀합니다">
+              <div class="battery-fill" id="st-batt-fill"></div>
+              <div class="battery-mark" id="st-batt-mark"></div>
+            </div>
+            <p class="battery-text"><span id="st-batt-text">-</span><span class="muted" id="st-return"></span></p>
+            <dl class="stats">
+              <div><dt>방문</dt><dd id="st-visits">-</dd></div>
+              <div><dt>이동</dt><dd id="st-moves">-</dd></div>
+              <div><dt>재계획</dt><dd id="st-replans">-</dd></div>
+              <div><dt>이동 중 최대 경사</dt><dd id="st-slope">-</dd></div>
+            </dl>
+          </section>
+
+          <section class="card" aria-label="조작">
+            <div class="row">
+              <button type="button" class="btn primary" id="btn-start">▶ 시작</button>
+              <button type="button" class="btn" id="btn-stop">■ 정지</button>
+              <button type="button" class="btn" id="btn-reset">↺ 처음</button>
+            </div>
+            <div class="row">
+              <span class="label">속도</span>
+              <div class="seg" id="speed-tabs">
+                <button type="button" data-speed="1">1×</button>
+                <button type="button" data-speed="5" class="on">5×</button>
+                <button type="button" data-speed="20">20×</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="card" aria-label="한 번 눌러 보기">
+            <h2>한 번 눌러 보기</h2>
+            <div class="quick">
+              <button type="button" class="btn" id="q-obstacle">경로 앞에 장애물 놓기<small>막히면 바로 새 경로</small></button>
+              <button type="button" class="btn" id="q-battery">배터리를 부족하게<small>못 돌아오기 전에 복귀</small></button>
+              <button type="button" class="btn" id="q-bad">잘못된 명령 보내기<small>멈추지 않고 경보</small></button>
+            </div>
+          </section>
+
+          <section class="card" aria-label="설정">
+            <label class="slider">
+              <span>배터리 <output id="out-batt">-</output></span>
+              <input type="range" id="in-batt" min="0" max="500" step="1" value="500">
+            </label>
+            <label class="slider">
+              <span>등판 한계 <output id="out-slope">-</output></span>
+              <input type="range" id="in-slope" min="5" max="30" step="1" value="15">
+            </label>
+            <p class="hint" id="slope-note"></p>
+            <label class="slider" id="zscale-row" hidden>
+              <span>3D 높이 과장 <output id="out-z">5×</output></span>
+              <input type="range" id="in-z" min="1" max="10" step="1" value="5">
+            </label>
+            <label class="check">
+              <input type="checkbox" id="in-energy"> 복귀 에너지 지도 보기
+              <small>칸마다 기지까지 필요한 에너지 (노랑 적음 → 보라 많음, 검정은 기지로 갈 수 없는 칸)</small>
+            </label>
+          </section>
+
+          <section class="card" aria-label="기록">
+            <h2>기록 <button type="button" class="link" id="btn-clear-log">지우기</button></h2>
+            <ol class="log" id="log" aria-live="polite"></ol>
+          </section>
+        </aside>
+      </div>
+    </section>
+
+    <section id="how">
+      <h2>이 데모는 무엇으로 도는가</h2>
+      <p>제어기의 핵심 다섯 유닛은 ROS 2에 의존하지 않는 C++17 라이브러리(<code>ugv_core</code>)입니다. 그 코드를 한 줄도 고치지 않고
+        WebAssembly로 컴파일했고, ROS 2에서 센서·배터리·구동부를 대신하던 시뮬레이션 노드 세 개는 같은 규칙의 C++ 루프로 옮겼습니다.
+        화면(JavaScript)은 그리기와 입력 전달만 합니다.</p>
+      <div class="arch" role="img" aria-label="구조: 화면이 C 함수로 WebAssembly 모듈을 호출하고, 모듈 안에 시뮬레이션 루프와 ugv_core가 있음">
+        <div class="arch-box">
+          <b>화면 (HTML · Canvas · three.js)</b>
+          <span>지도 그리기, 클릭·슬라이더를 명령으로 전달</span>
+        </div>
+        <div class="arch-arrow">C 함수 호출 · JSON<br>↓ 명령 &nbsp; ↑ 상태</div>
+        <div class="arch-box wasm">
+          <b>ugv_web.wasm</b>
+          <div class="arch-inner">
+            <div><b>시뮬레이션 루프</b><span>구동 · 배터리 · 인식 (ROS 2 시뮬레이터와 같은 규칙)</span></div>
+            <div class="core"><b>ugv_core — 기존 코드 그대로</b>
+              <span>U1 지형과 경사 비용 · U2 A* · U3 순찰 순서 · U4 복귀 에너지 · U5 임무 상태 기계</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>브라우저에서 실제로 도는 것</th><th>ROS 2에서만 도는 것</th></tr></thead>
+          <tbody>
+            <tr><td>A* 경로 계획, 경사 비용, 등판 한계</td><td>노드 사이 통신 (토픽, DDS QoS)</td></tr>
+            <tr><td>가장 오래 안 간 지점부터 도는 순찰 순서</td><td>Python 제어기 (C++와 같은 경로를 냄)</td></tr>
+            <tr><td>장애물 발견 시 재계획, 배터리 복귀 판단</td><td>RViz2 화면 (여기서는 3D 탭이 대신함)</td></tr>
+            <tr><td>명령 해석과 잘못된 입력 경보</td><td>정사영상에서 장애물을 찾는 딥러닝 추론 (여기서는 그 결과 지도를 사용)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">웹용 시뮬레이션 루프는 ROS 2 시나리오 시험과 같은 조건으로 시험합니다. 캠퍼스 순찰은 ROS 2 실행과 똑같이
+        이동 319회, 최대 경사 13.5°가 나와야 통과합니다(네이티브 빌드와 WebAssembly 빌드 모두).</p>
+    </section>
+
+    <section id="results">
+      <h2>검증 결과</h2>
+      <div class="table-wrap">
+        <table>
+          <tbody>
+            <tr><th>단위 시험</th><td>Python 82개, C++(GoogleTest) 36개 통과. push마다 GitHub Actions에서 실행</td></tr>
+            <tr><th>시나리오 시험 (실제 ROS 2 실행)</th><td>S1 정상 순찰, S2 장애물, S3 배터리 부족, S4 비정상 입력, S5 캠퍼스 순찰. Python·C++ 제어기 모두 통과</td></tr>
+            <tr><th>캠퍼스 순찰</th><td>깃발 3개 모두 방문, 장애물 진입 0회, 이동 중 최대 경사 13.5° (한계 15°)</td></tr>
+            <tr><th>재계획 시간</th><td>요구 0.5초 이내. 실측 Python 48 ms, C++ 8 ms</td></tr>
+            <tr><th>C++ vs Python A*</th><td>600개 경로가 칸 단위로 같음. C++가 약 20배 빠름 (평균 0.2 ms)</td></tr>
+            <tr><th>장애물 인식</th><td>직접 만든 정답 기준 건물+나무 IoU 0.63 (목표 0.6)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="process">
+      <h2>구현 과정</h2>
+      <ol class="steps">
+        <li><b>설계 먼저.</b> 요구사항(기능 22개, 비기능 8개)과 유닛 5개를 문서로 정한 뒤 Python으로 구현하고 합성 지형에서 시험했습니다.</li>
+        <li><b>캠퍼스 지도 만들기.</b> 국토지리정보원 정사영상(25 cm)에서 DeepLabV3로 건물·나무·물을 찾아 10 m 격자로 줄였습니다.</li>
+        <li><b>정답 데이터 직접 만들기.</b> OpenStreetMap에는 가로수와 일부 건물이 빠져 있어, 라벨링 도구를 만들어 캠퍼스 중앙을 직접 칠해 평가했습니다.</li>
+        <li><b>실제 고도와 등판 한계.</b> Copernicus GLO-30 고도를 10 m 칸으로 보간했습니다. 30°로는 막히는 곳이 없어 소형 바퀴형 UGV 기준인 15°로 정했습니다. 위 슬라이더로 직접 바꿔 볼 수 있습니다.</li>
+        <li><b>C++ 포팅.</b> 유닛과 제어기 노드를 C++17로 옮기고, Python과 경로가 칸 단위로 같은지 확인했습니다.</li>
+        <li><b>웹 데모.</b> 같은 C++ 코드를 WebAssembly로 빌드해 이 페이지를 만들었습니다.</li>
+      </ol>
+      <div class="figs">
+        <figure><img src="img/run_rviz.png" alt="RViz2에서 본 캠퍼스 순찰" loading="lazy"><figcaption>ROS 2 실행 화면 (RViz2, 높이 5배 과장)</figcaption></figure>
+        <figure><img src="img/label_compare.png" alt="직접 만든 정답과 모델 결과, OSM 비교" loading="lazy"><figcaption>장애물 인식 평가: 직접 만든 정답 · 모델 결과 · OSM</figcaption></figure>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    <p>데이터: 고도 Copernicus GLO-30 DEM (© DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA) ·
+      건물·물·숲 윤곽 © OpenStreetMap contributors (ODbL) · 장애물 인식 원본은 국토지리정보원 정사영상 (영상 자체는 이 페이지에 없음)</p>
+    <p>3D 화면: three.js (MIT) · 소스와 문서는 <a href="https://github.com/jjaewon-Hong/ugv_patrol_planner">GitHub 저장소</a>에 있습니다.</p>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

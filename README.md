@@ -40,11 +40,19 @@ bash scripts/ci.sh                 # 전체 시험 (CI와 같음)
 
 ROS 2 없이 Docker로도 됩니다: `docker build -t ugv-patrol . && docker run --rm ugv-patrol`
 
+**웹 데모.** C++ 핵심(`ugv_core`)을 그대로 WebAssembly로 빌드해 브라우저에서 순찰을 돌려 볼 수 있습니다. 깃발·장애물을 클릭으로 놓고, 배터리와 등판 한계를 슬라이더로 바꿉니다.
+
+```bash
+bash scripts/setup_emsdk.sh        # 처음 한 번: Emscripten SDK 설치
+bash scripts/build_web.sh          # web/ 에 WASM 모듈과 지도 생성
+bash scripts/serve_web.sh          # http://localhost:8000
+```
+
 ## 검증 결과
 
 | 항목 | 결과 |
 |---|---|
-| 단위 시험 | Python 77개, C++(GoogleTest) 23개 통과 |
+| 단위 시험 | Python 82개, C++(GoogleTest) 36개 통과 |
 | 시나리오 시험 (실제 ROS 2 실행) | S1 정상 순찰, S2 장애물, S3 배터리 부족, S4 비정상 입력, S5 캠퍼스 순찰. 두 제어기 모두 통과 |
 | 캠퍼스 순찰 (S5) | 깃발 3개 모두 방문, 장애물 진입 0회, 실제 이동 중 최대 경사 13.5° (한계 15°) |
 | 장애물 인식 (직접 라벨 기준, 목표 0.6) | 건물+나무 IoU **0.63** (건물 0.75, 나무 0.56) |
@@ -77,3 +85,4 @@ ROS 2 없이 Docker로도 됩니다: `docker build -t ugv-patrol . && docker run
 - [report1.md](report1.md) — 프로젝트 관리 (범위, 규모 산정, WBS)
 - [report2.md](report2.md) — 요구사항 (FR·NFR, 검증 방법)
 - [report3.md](report3.md) — 설계 (아키텍처, UML, 유닛 상세 설계)
+- [docs/web_demo_plan.md](docs/web_demo_plan.md) — 웹 데모 계획과 진행 결과
