@@ -99,4 +99,3 @@ bash scripts/serve_web.sh          # http://localhost:8000
 - [docs/report1.md](docs/report1.md) — 프로젝트 관리 (범위, 규모 산정, WBS)
 - [docs/report2.md](docs/report2.md) — 요구사항 (FR·NFR, 검증 방법)
 - [docs/report3.md](docs/report3.md) — 설계 (아키텍처, UML, 유닛 상세 설계)
-- [docs/web_demo_plan.md](docs/web_demo_plan.md) — 웹 데모 계획과 진행 결과
