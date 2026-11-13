@@ -7,9 +7,11 @@
 #   bash scripts/run.sh campus cpp 5    same, RViz2 heights stretched 5x (display only)
 # A scenario uses config/<name>.yaml when it exists, otherwise config/params.yaml.
 # Then, in another terminal:  bash scripts/demo.sh <same name>
+# A previous run is stopped first (scripts/stop.sh), so only one set of nodes is ever running.
 set +u
 source /opt/ros/jazzy/setup.bash
 source ~/ros2_ws/install/setup.bash
+bash "$(dirname "$0")/stop.sh" || exit 1
 NAME=${1:-default}
 CONTROLLER=${2:-py}
 Z_SCALE=${3:-1}
