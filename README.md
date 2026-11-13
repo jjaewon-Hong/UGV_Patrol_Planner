@@ -15,7 +15,7 @@ DEM(고도)     → 같은 10 m 격자로 리샘플링 ────────�
 |---|---|---|
 | 1 | 요구사항·설계 (report1\~3), 핵심 유닛 U1\~U5, ROS 2 노드, 단위·시나리오 시험 | 완료 |
 | 2 | 캠퍼스 정사영상 확보, 이어 붙이기·자르기 (`tools/prepare_ortho.py`) | 완료 |
-| 3 | 장애물 인식: PyTorch DeepLabV3를 LoveDA로 학습해 캠퍼스 추론 (`notebooks/`), OSM 정답 지도와 IoU 비교 (`tools/campus_map.py`) | 완료 (NFR-08 기준 미달, 아래 검증 결과 참고) |
+| 3 | 장애물 인식: PyTorch DeepLabV3를 LoveDA로 학습해 캠퍼스 추론 (`notebooks/`), 직접 라벨링한 검증 영역과 OSM으로 IoU 평가 (`tools/label_tool.py`, `tools/campus_map.py`) | 완료 (직접 라벨 기준 NFR-08 충족) |
 | 4 | 좌표 보정, 고도 데이터 정합, 깃발 무작위 배치, 캠퍼스 시나리오 S5 | 완료 (`campus`: 모델 지도, `campus_osm`: OSM 지도) |
 | 5 | 핵심 알고리즘 C++17 포팅 (`cpp/`), Docker·GitHub Actions 자동 시험 | 완료 |
 | 6 | C++ ROS 2 제어기 노드 (rclcpp, U1\~U5 전부 C++) | 완료 (`controller:=cpp`) |
@@ -52,7 +52,7 @@ bash scripts/build.sh                # ~/ros2_ws에 Python·C++ 두 패키지 �
 bash scripts/run.sh                  # 제어기 + 시뮬레이션 + 2D 화면 + RViz2 실행 (run.sh low_battery, run.sh campus, run.sh campus_osm)
 bash scripts/run.sh campus cpp       # C++ 제어기로 실행 (두 번째 인자: py 또는 cpp)
 bash scripts/demo.sh                 # 다른 터미널에서: 순찰 지점 등록 후 시작 (run.sh와 같은 이름, 예: demo.sh campus)
-python3 -m pytest                    # 단위 시험 59개 (ROS 2 없이도 실행 가능)
+python3 -m pytest                    # 단위 시험 62개 (ROS 2 없이도 실행 가능)
 source ~/ros2_ws/install/setup.bash && python3 scripts/scenario_test.py   # 시나리오 시험 S1~S5 (--cpp: C++ 제어기)
 bash scripts/ci.sh                   # CI와 같은 전체 시험 (Python, C++, C++ vs Python, 시나리오 × 두 제어기)
 ```
@@ -79,23 +79,27 @@ docker build -t ugv-patrol . && docker run --rm ugv-patrol
 
 | 항목 | 결과 |
 |---|---|
-| 단위 시험 (U1\~U5, 깃발 배치, 좌표 변환) | 59개 통과 |
+| 단위 시험 (U1\~U5, 깃발 배치, 좌표 변환, 라벨링 도구) | 62개 통과 |
 | 시나리오 시험 (실제 ROS 2 실행) | S1 정상 순찰, S2 장애물 발견, S3 배터리 부족, S4 비정상 입력, S5 캠퍼스 순찰을 Python·C++ 제어기 모두 통과 |
 | 정사영상 좌표 보정 | 도엽 번호로 위치를 계산한 뒤 OSM 건물 윤곽에 맞춰 13 m 보정 |
 | 분할 모델 학습 (LoveDA 검증 세트) | mIoU 0.511 (15에폭, Kaggle T4 2시간 18분), 건물 0.63, 물 0.69, 숲 0.38 |
-| 캠퍼스 인식 vs OSM (NFR-08, 기준 0.6) | 건물+숲 IoU 0.44, 건물 0.37, 숲 0.43 → **미달** |
+| 캠퍼스 인식 vs 직접 라벨 (NFR-08, 기준 0.6) | 200 m × 200 m 검증 영역: 건물+나무 IoU **0.63 (충족)**, 건물 0.75, 나무 0.56 |
+| 같은 영역에서 OSM vs 직접 라벨 | 건물+나무 IoU 0.25, 건물 0.50, 나무 0 (OSM에 가로수·작은 숲 없음) |
+| 캠퍼스 전체 인식 vs OSM (참고) | 건물+숲 IoU 0.44 (OSM이 불완전해 정답으로 쓰기 어려움, 아래 분석) |
 | 캠퍼스 모델 지도 순찰 (S5) | 장애물 칸 48 %, 깃발 3개 모두 방문, 장애물 칸 진입 0회 |
 | 재계획 지연 (S2, 장애물 보고 → 새 경로 발행) | Python 제어기 최대 48 ms, C++ 제어기 최대 8 ms (요구사항 0.5초 이내) |
 | C++ A\* vs Python A\* (지도 3종 × 200쌍) | 600개 경로가 칸 단위로 모두 같음, 비용 차이 5×10⁻¹⁰ 이하 |
 | C++ A\* 속도 | 평균 0.15\~0.24 ms, 최대 1.0 ms (Python 2.8\~5.6 ms, 최대 32 ms) → 약 20배 |
 | C++ 단위 시험 (GoogleTest) | 23개 통과 (U1\~U5: Dijkstra 기준 최적성, 등판 한계, 복귀 에너지, 순찰 순서, 임무 상태 전이, 상태 JSON 형식) |
 
-NFR-08 미달 원인 분석 (`tools/campus_map.py eval` 결과를 나눠 본 값):
+정답 지도 선택: 처음에는 OSM을 정답으로 썼지만 IoU가 0.44로 낮게 나왔고, 원인을 나눠 보니 OSM 자체가 불완전했습니다(`tools/campus_map.py eval`). 그래서 캠퍼스 중앙 200 m × 200 m를 사진만 보고 직접 라벨링해(`tools/label_tool.py`, 모델 결과와 OSM은 숨김) 다시 평가했습니다. 같은 영역에서 모델은 0.63, OSM은 0.25로, OSM보다 모델이 실제에 더 가깝습니다. 남은 오차는 주로 나무가 듬성듬성한 안뜰 정원을 모델이 나무로 보지 않은 부분입니다.
+
+OSM 기준 점수가 낮았던 원인:
 - **정답 지도(OSM)가 불완전함:** 모델이 찾은 숲의 48 %는 가로수·작은 숲으로 OSM에 없고, 모델이 찾은 건물의 49 %도 OSM에 없는 곳(누락 건물, 지붕 가장자리)입니다. OSM 숲 안의 27 %는 실제로는 풀밭·빈터입니다.
 - **학습 데이터와 지역 차이:** LoveDA는 중국 도시 영상이라, OSM 건물 면적 중 모델이 찾은 비율(재현율)은 0.58에 그칩니다.
 - **남은 위치 오차:** 예측과 OSM 건물 사이에 약 7 m 어긋남이 남아 있으며, 보정하면 건물 IoU가 0.37에서 0.40으로 오릅니다.
 
-다음 단계: 캠퍼스 일부를 직접 라벨링한 검증 영역으로 정답을 보완하고, 국내 항공영상 데이터로 미세 조정합니다.
+다음 단계: 검증 영역을 여러 곳으로 늘려 결과의 신뢰도를 높이고, 국내 항공영상 데이터로 미세 조정합니다.
 
 ## C++17 제어기 (`cpp/`)
 
