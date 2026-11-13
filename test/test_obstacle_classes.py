@@ -6,7 +6,7 @@ import pytest
 
 from ugv_patrol_planner.common import load_config
 
-ROOT = os.path.join(os.path.dirname(__file__), '..')
+ROOT = os.path.join(os.path.dirname(__file__), '..', 'share')  # config/, data/ as installed
 
 
 @pytest.mark.parametrize('name', ['campus', 'campus_osm'])

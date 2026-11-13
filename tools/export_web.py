@@ -37,7 +37,8 @@ def b64(array: np.ndarray, dtype: str) -> str:
 
 
 def path(*parts: str) -> str:
-    return os.path.join(ROOT, *parts)
+    """A file under share/ (config/, scenarios/, data/), where the configs' relative paths start."""
+    return os.path.join(ROOT, 'share', *parts)
 
 
 def export_map(map_id: str, config_file: str, scenario_file: str, title: str, about: str) -> dict:
@@ -90,4 +91,4 @@ def main(out_dir: str) -> None:
 
 
 if __name__ == '__main__':
-    main(sys.argv[1] if len(sys.argv) > 1 else path('web', 'maps'))
+    main(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'web', 'maps'))

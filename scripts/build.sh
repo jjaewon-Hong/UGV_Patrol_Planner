@@ -10,7 +10,7 @@ WS=~/ros2_ws
 mkdir -p "$WS/src"
 ln -sfn "$REPO" "$WS/src/ugv_patrol_planner"
 ln -sfn "$REPO/cpp" "$WS/src/ugv_patrol_planner_cpp"
-[ -f "$REPO/data/dem_100x100.npy" ] || python3 "$REPO/tools/make_synthetic_dem.py" "$REPO/data/dem_100x100.npy"
+[ -f "$REPO/share/data/dem_100x100.npy" ] || python3 "$REPO/tools/make_synthetic_dem.py" "$REPO/share/data/dem_100x100.npy"
 
 set +u
 source /opt/ros/jazzy/setup.bash

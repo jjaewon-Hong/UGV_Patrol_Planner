@@ -12,6 +12,6 @@ fi
 
 NATIVE=""
 if [ -x "$BUILD/ugv_plan" ]; then
-  NATIVE=$(echo "42 30 64 21" | "$BUILD/ugv_plan" data/campus_pred/dem.npy data/campus_pred/obstacles.npy 10)
+  NATIVE=$(echo "42 30 64 21" | "$BUILD/ugv_plan" share/data/campus_pred/dem.npy share/data/campus_pred/obstacles.npy 10)
 fi
 node web/test/node_test.mjs "$NATIVE"

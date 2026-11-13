@@ -15,7 +15,7 @@ using namespace ugv;
 using S = MissionState;
 
 namespace {
-const std::string kData = UGV_DATA_DIR;  // <repo>/data, set by CMake
+const std::string kData = UGV_DATA_DIR;  // <repo>/share/data, set by CMake
 
 // config/params.yaml + scenarios/default.yaml (or low_battery.yaml with battery = 30)
 std::unique_ptr<Simulation> default_world(double battery = 500.0, bool hidden = true) {

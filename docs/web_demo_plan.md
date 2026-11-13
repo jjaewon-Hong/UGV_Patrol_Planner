@@ -96,9 +96,9 @@ int   ugv_traversable(int r0, int c0, int r1, int c1);   // 이웃 칸 이동 �
 
 | 출력 | 입력 | 담는 것 |
 |---|---|---|
-| `maps/campus.json` | `config/campus.yaml`, `scenarios/campus.yaml`, `data/campus_pred/*` | 고도, 장애물, 장애물 종류, 칸 크기 10 m, 등판 한계 15°, 기지 (42, 30), 문 위치, 깃발 3개 |
-| `maps/campus_osm.json` | `config/campus_osm.yaml`, `data/campus_osm/*` | 같은 구성, OSM 장애물 |
-| `maps/default.json` | `config/params.yaml`, `scenarios/default.yaml`, `data/dem_100x100.npy` | 합성 지형, 숨은 장애물 16칸, 순찰 지점 3개 |
+| `maps/campus.json` | `share/config/campus.yaml`, `share/scenarios/campus.yaml`, `share/data/campus_pred/*` | 고도, 장애물, 장애물 종류, 칸 크기 10 m, 등판 한계 15°, 기지 (42, 30), 문 위치, 깃발 3개 |
+| `maps/campus_osm.json` | `share/config/campus_osm.yaml`, `share/data/campus_osm/*` | 같은 구성, OSM 장애물 |
+| `maps/default.json` | `share/config/params.yaml`, `share/scenarios/default.yaml`, `share/data/dem_100x100.npy` | 합성 지형, 숨은 장애물 16칸, 순찰 지점 3개 |
 
 - **깃발은 변환할 때 미리 계산한다.** `place_flags`는 Python 난수(`random.Random(7)`)를 쓰므로, JS에서 다시 만들지 않고 결과 좌표를 JSON에 넣는다. ROS 2 실행과 같은 `(64, 21), (3, 1), (35, 48)`가 나온다.
 - 고도는 반올림하지 **않는다**. 원본 `.npy`가 float64라서 float64 그대로 base64로 넣는다(경사 계산이 ROS 2 실행과 비트 단위로 같게). 지도 하나에 약 134 KB, 압축 전송하면 더 작다.

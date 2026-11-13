@@ -1,5 +1,5 @@
 # ROS 2 Jazzy image that builds both packages (Python nodes, C++ controller) and runs every test.
-#   docker build -t ugv-patrol .
+#   docker build -f scripts/Dockerfile -t ugv-patrol .      (from the repository root)
 #   docker run --rm ugv-patrol                 # all tests (scripts/ci.sh)
 #   docker run --rm -it ugv-patrol bash        # shell with the workspace sourced
 FROM ros:jazzy-ros-base

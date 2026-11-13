@@ -69,12 +69,12 @@ if(UGV_BUILD_TESTS AND NOT EMSCRIPTEN)
   include(GoogleTest)
   gtest_discover_tests(test_core)
 
-  # The simulation tests read the maps in <repo>/data (cpp/ can be reached through a symlink under colcon).
+  # The simulation tests read the maps in <repo>/share/data (cpp/ can be reached through a symlink under colcon).
   get_filename_component(UGV_CPP_DIR "${CMAKE_CURRENT_SOURCE_DIR}" REALPATH)
   get_filename_component(UGV_REPO_DIR "${UGV_CPP_DIR}" DIRECTORY)
   add_executable(test_sim test/test_sim.cpp)
   target_link_libraries(test_sim PRIVATE ugv_sim GTest::gtest_main)
-  target_compile_definitions(test_sim PRIVATE UGV_DATA_DIR="${UGV_REPO_DIR}/data")
+  target_compile_definitions(test_sim PRIVATE UGV_DATA_DIR="${UGV_REPO_DIR}/share/data")
   gtest_discover_tests(test_sim)
 endif()
 

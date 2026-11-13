@@ -1,6 +1,6 @@
 """Fit the RViz2 camera and grid to the map size (maps differ: 3 km default, 1 km campus).
 
-Used by launch/patrol.launch.py to write a per-run copy of rviz/patrol.rviz.
+Used by share/launch/patrol.launch.py to write a per-run copy of share/rviz/patrol.rviz.
 """
 import yaml
 

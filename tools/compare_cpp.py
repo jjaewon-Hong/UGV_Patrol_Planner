@@ -2,7 +2,7 @@
 
     python3 tools/compare_cpp.py <path/to/ugv_plan> [pairs=200]
 
-Runs both planners on the same random start/goal pairs for each map in data/ and prints
+Runs both planners on the same random start/goal pairs for each map in share/data/ and prints
 how many paths match exactly (same cells), the largest cost difference and the planning time.
 """
 import os
@@ -29,8 +29,8 @@ def main(binary: str, pairs: int) -> int:
     failures = 0
     print(f'{"map":20s} {"pairs":>5s} {"same path":>9s} {"max |dcost|":>11s} {"py ms (mean/max)":>17s} {"C++ ms (mean/max)":>18s}')
     for name, dem, obs, cs in MAPS:
-        dem_p = os.path.join(ROOT, dem)
-        obs_p = '-' if obs == '-' else os.path.join(ROOT, obs)
+        dem_p = os.path.join(ROOT, 'share', dem)
+        obs_p = '-' if obs == '-' else os.path.join(ROOT, 'share', obs)
         elev = np.load(dem_p)
         cfg = Config(map_size=elev.shape[0], cell_size_m=cs)
         terrain = TerrainMap.from_file(dem_p, cfg, '' if obs == '-' else obs_p)

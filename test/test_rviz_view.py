@@ -6,7 +6,7 @@ import yaml
 
 from ugv_patrol_planner.rviz_view import fit_view, write_fitted
 
-TEMPLATE = os.path.join(os.path.dirname(__file__), '..', 'rviz', 'patrol.rviz')
+TEMPLATE = os.path.join(os.path.dirname(__file__), '..', 'share', 'rviz', 'patrol.rviz')
 
 
 def template():

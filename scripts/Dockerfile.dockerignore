@@ -2,9 +2,11 @@
 .github
 **/__pycache__
 *.pdf
-images
-notebooks
+docs/images
+tools/notebooks
 build
 install
 log
 build_cpp
+build_web
+.claude

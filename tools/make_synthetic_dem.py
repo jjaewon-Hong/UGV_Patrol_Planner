@@ -30,7 +30,7 @@ def make_dem(n: int = 100, seed: int = 7) -> np.ndarray:
 
 
 if __name__ == '__main__':
-    out = sys.argv[1] if len(sys.argv) > 1 else 'data/dem_100x100.npy'
+    out = sys.argv[1] if len(sys.argv) > 1 else 'share/data/dem_100x100.npy'
     n = int(sys.argv[2]) if len(sys.argv) > 2 else 100
     dem = make_dem(n)
     np.save(out, dem)

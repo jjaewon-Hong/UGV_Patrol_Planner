@@ -13,6 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build Docker image (ROS 2 Jazzy + package + C++ core)
-        run: docker build -t ugv-patrol .
+        run: docker build -f scripts/Dockerfile -t ugv-patrol .
       - name: Run all tests (Python, C++, C++ vs Python, scenarios S1~S5)
         run: docker run --rm ugv-patrol

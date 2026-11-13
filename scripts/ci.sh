@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Every automatic check, in the order CI runs them (Docker image or a local ROS 2 Jazzy machine).
 #   bash scripts/ci.sh [cpp_build_dir]
-# Needs: ROS 2 Jazzy sourced and both packages built with colcon (the Dockerfile and scripts/build.sh do both).
+# Needs: ROS 2 Jazzy sourced and both packages built with colcon (scripts/Dockerfile and scripts/build.sh do both).
 set -eo pipefail
 set +u
 cd "$(dirname "$0")/.."

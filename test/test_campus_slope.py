@@ -7,7 +7,7 @@ from ugv_patrol_planner.common import load_config
 from ugv_patrol_planner.planning.astar import AStarPlanner
 from ugv_patrol_planner.terrain.terrain_map import TerrainMap
 
-ROOT = os.path.join(os.path.dirname(__file__), '..')
+ROOT = os.path.join(os.path.dirname(__file__), '..', 'share')  # config/, data/ as installed
 
 
 def campus(name):

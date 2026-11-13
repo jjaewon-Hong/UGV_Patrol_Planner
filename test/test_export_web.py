@@ -44,7 +44,7 @@ def test_campus_settings_and_flags_match_the_ros2_run(maps):
 
 
 def test_elevation_is_bit_identical(maps):
-    for name, dem in [('campus', 'data/campus_pred/dem.npy'), ('default', 'data/dem_100x100.npy')]:
+    for name, dem in [('campus', 'share/data/campus_pred/dem.npy'), ('default', 'share/data/dem_100x100.npy')]:
         original = np.load(os.path.join(ROOT, dem))
         assert np.array_equal(grid(maps[name], 'elevation_b64', '<f8'), original)
 
@@ -52,7 +52,7 @@ def test_elevation_is_bit_identical(maps):
 def test_obstacles_and_classes(maps):
     m = maps['campus']
     obstacles = grid(m, 'obstacles_b64', np.uint8)
-    assert np.array_equal(obstacles, np.load(os.path.join(ROOT, 'data/campus_pred/obstacles.npy')))
+    assert np.array_equal(obstacles, np.load(os.path.join(ROOT, 'share/data/campus_pred/obstacles.npy')))
     classes = grid(m, 'classes_b64', np.uint8)
     assert set(np.unique(classes)) <= {0, 1, 2, 3}
     assert not obstacles[tuple(m['base'])]
