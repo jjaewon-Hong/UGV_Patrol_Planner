@@ -14,7 +14,6 @@ const MODE_HINTS = {
 
 const app = {
   ugv: null,          // WebAssembly wrapper
-  maps: {},           // id -> prepared map
   map: null,
   world: null,
   state: null,        // last state from the module
@@ -106,14 +105,10 @@ function refreshEnergy() {
   app.view2d.setEnergy(app.energyOn ? app.world.returnEnergy() : null);
 }
 
-async function selectMap(id) {
-  if (!app.maps[id]) {
-    const res = await fetch(`maps/${id}.json`);
-    if (!res.ok) throw new Error(`지도 파일을 불러오지 못했습니다 (${id})`);
-    app.maps[id] = prepareMap(await res.json());
-  }
-  app.map = app.maps[id];
-  for (const b of $('map-tabs').children) b.classList.toggle('on', b.dataset.map === id);
+async function loadMap(id) {
+  const res = await fetch(`maps/${id}.json`);
+  if (!res.ok) throw new Error(`지도 파일을 불러오지 못했습니다 (${id})`);
+  app.map = prepareMap(await res.json());
   $('map-about').textContent = `${app.map.about} 칸 크기 ${app.map.cell_size_m} m, 기지 (${app.map.base.join(', ')}).`;
   app.view2d.setMap(app.map);
   buildWorld();
@@ -266,7 +261,7 @@ function showHover(cell) {
   out.classList.remove('muted');
   const i = cell[0] * app.map.n + cell[1];
   const known = app.view2d.known[i];
-  const kind = !known ? '빈 칸' : app.map.obstacles[i] ? CLASS_NAMES[app.map.classes[i]] : '새로 알게 된 장애물';
+  const kind = !known ? '빈 칸' : app.map.obstacles[i] ? CLASS_NAMES[app.map.classes[i]] : '직접 놓은 장애물';
   out.textContent = `칸 (${cell.join(', ')}) · 고도 ${app.map.elevation[i].toFixed(1)} m · ${kind}`;
 }
 
@@ -357,7 +352,6 @@ function quickBadInput() {
 }
 
 function setupControls() {
-  segmented('map-tabs', 'map', (id) => selectMap(id).catch(fail));
   segmented('view-tabs', 'view', setView);
   segmented('speed-tabs', 'speed', (v) => { app.speed = Number(v); });
   segmented('mode-tabs', 'mode', (mode) => {
@@ -414,18 +408,10 @@ function fail(err) {
 async function main() {
   clearLog();
   if (typeof WebAssembly !== 'object') throw new Error('WebAssembly를 지원하지 않는 브라우저입니다.');
-  const [ugv, index] = await Promise.all([loadUgv(), fetch('maps/index.json').then((r) => r.json())]);
-  app.ugv = ugv;
-  for (const m of index) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.dataset.map = m.id;
-    b.textContent = m.title;
-    $('map-tabs').append(b);
-  }
+  app.ugv = await loadUgv();
   setupControls();
   setupMapInput();
-  await selectMap(index[0].id);
+  await loadMap('campus');  // the page shows the campus map only; tests also use the other exported maps
   $('loading').hidden = true;
   requestAnimationFrame((ts) => { lastTs = ts; frame(ts); });
 }

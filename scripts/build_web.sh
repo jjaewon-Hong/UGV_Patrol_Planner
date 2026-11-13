@@ -21,6 +21,6 @@ python3 tools/export_web.py web/maps
 
 echo "== Pictures"
 mkdir -p web/img
-cp docs/images/run_2d.png docs/images/run_rviz.png docs/images/label_compare.png web/img/
+cp docs/images/run_2d.png web/img/   # shown only when the browser cannot run the demo
 
 ls -l web/ugv_web.js web/ugv_web.wasm web/maps
