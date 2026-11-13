@@ -216,7 +216,8 @@ def s4(p: Probe):
 
 
 def s5(p: Probe):
-    """Campus map: random flags are reproducible, all visited, no obstacle cell entered (FR-20~22)."""
+    """Campus map: random flags are reproducible, all visited, no obstacle cell entered (FR-20~22),
+    and no move the UGV made was steeper than the campus climbing limit (FR-03, 15 deg in v1.3)."""
     import yaml
     from ugv_patrol_planner.common import load_config
     from ugv_patrol_planner.mission.flags import scenario_points
@@ -234,9 +235,13 @@ def s5(p: Probe):
     p.spin_until(120, lambda: len(p.visit_counts()) == len(flags))
     counts = p.visit_counts()
     entered = sorted({c for c in p.poses if terrain.is_obstacle(c)})
-    ok = same and len(counts) == len(flags) and not entered
+    # one-cell moves only (a pose message the probe missed would join two cells that are not neighbours)
+    moves = [(a, b) for a, b in zip(p.poses, p.poses[1:]) if abs(a[0] - b[0]) + abs(a[1] - b[1]) == 1]
+    steepest = max((terrain.slope_deg(a, b) for a, b in moves), default=0.0)
+    ok = same and len(counts) == len(flags) and not entered and steepest <= cfg.max_slope_deg + 1e-9
     return {'S5 캠퍼스 순찰': (ok, f'깃발 {flags} (같은 시드 재현 {"예" if same else "아니오"}), '
-                               f'방문 {dict(sorted(counts.items()))}, 장애물 칸 진입 {len(entered)}개')}
+                               f'방문 {dict(sorted(counts.items()))}, 장애물 칸 진입 {len(entered)}개, '
+                               f'이동 {len(moves)}회 중 최대 경사 {steepest:.1f}° (한계 {cfg.max_slope_deg:g}°)')}
 
 
 def main():
