@@ -1,27 +1,37 @@
-// 3D terrain view with three.js (stands in for RViz2): height field, obstacle boxes, path, UGV, flags, base.
+// 3D terrain view with three.js, drawn like the RViz2 view of the ROS 2 run: one box per cell on a grey
+// background with a ground grid, obstacle cubes on top, path line, UGV, patrol points, base.
 // View only: drag to rotate, wheel or pinch to zoom. Heights above the lowest cell are multiplied by zScale.
 import * as THREE from '../vendor/three.module.min.js';
 import { COLORS } from './view2d.js';
 
-// Colours are given as sRGB (the same numbers as the 2D view); three.js works in linear light.
+// Colours are given as sRGB; three.js works in linear light.
 const rgb = (c) => (Array.isArray(c)
   ? new THREE.Color().setRGB(c[0] / 255, c[1] / 255, c[2] / 255, THREE.SRGBColorSpace)
   : new THREE.Color(c));
-// box height in cells: unknown, building, water, tree, learned
-const HEIGHT = [0.8, 1.2, 0.08, 0.7, 0.9];
-const BOX_RGB = [COLORS.unknown, COLORS.building, COLORS.water, COLORS.tree, COLORS.learned];
+const BACKGROUND = [48, 48, 48];          // RViz default background
+const GRID = [130, 130, 134];
+const GROUND = [52, 108];                 // terrain grey: lowest cell .. highest cell
+// obstacle cubes: unknown, building, water, tree, learned (muted, not the bright 2D map colours)
+const BOX_RGB = [[150, 150, 150], [196, 34, 34], [74, 158, 204], [34, 132, 48], [226, 136, 30]];
+const HEIGHT = [0.8, 1.0, 0.25, 0.8, 0.9];  // in cells
 const MAX_PATH = 2500;
 
-function label(text, color) {
+/** Text that always faces the camera. Its world height is set by the caller with fit(). */
+function label(text, color = '#f2f2f2') {
+  const font = '600 34px system-ui, "Segoe UI", sans-serif';
   const canvas = document.createElement('canvas');
-  canvas.width = 128; canvas.height = 64;
-  const ctx = canvas.getContext('2d');
-  ctx.font = '700 40px system-ui, sans-serif';
+  let ctx = canvas.getContext('2d');
+  ctx.font = font;
+  canvas.width = Math.ceil(ctx.measureText(text).width) + 20;
+  canvas.height = 48;
+  ctx = canvas.getContext('2d');
+  ctx.font = font;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.strokeText(text, 64, 32);
-  ctx.fillStyle = color; ctx.fillText(text, 64, 32);
+  ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(20,20,20,0.9)'; ctx.strokeText(text, canvas.width / 2, 25);
+  ctx.fillStyle = color; ctx.fillText(text, canvas.width / 2, 25);
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), depthTest: false }));
   sprite.renderOrder = 10;
+  sprite.fit = (height) => { sprite.scale.set(height * canvas.width / canvas.height, height, 1); return sprite; };
   return sprite;
 }
 
@@ -32,15 +42,16 @@ export class View3D {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.append(this.renderer.domElement);
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x14171c);
+    this.scene.background = rgb(BACKGROUND);
     this.camera = new THREE.PerspectiveCamera(40, 1, 1, 100000);
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x50555c, 2.2));
-    const sun = new THREE.DirectionalLight(0xffffff, 2.4);
-    sun.position.set(-1, 1.6, -0.6);  // from the north-west, like a shaded relief map
+    // flat, even light: tops lit, sides a step darker, so every cell reads as a box
+    this.scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.9);
+    sun.position.set(-0.5, 1.6, 0.9);
     this.scene.add(sun);
     this.world = new THREE.Group();   // everything that depends on the map
     this.scene.add(this.world);
-    this.orbit = { az: -0.6, polar: 0.95, dist: 1 };
+    this.orbit = { az: -0.35, polar: 0.9, dist: 1 };
     this.pointers = new Map();
     this.flagKey = '';
     this.setupOrbit();
@@ -98,7 +109,7 @@ export class View3D {
   setObstacles(learned) { this.learned = learned; this.buildObstacles(); }
   setZScale(z) { this.zScale = z; this.rebuild(); }
 
-  /** Scene position of a cell (may be fractional): x east, y up, z south; the map is centred on the origin. */
+  /** Scene position of a cell's top (cell may be fractional): x east, y up, z south; the map is centred on the origin. */
   pos([r, c], lift = 0) {
     const { n, cell_size_m: cs, elevation } = this.map;
     const ri = Math.min(n - 1, Math.max(0, Math.round(r))), ci = Math.min(n - 1, Math.max(0, Math.round(c)));
@@ -117,55 +128,50 @@ export class View3D {
     const { n, cell_size_m: cs, elevation } = this.map;
     this.clear(this.world);
     this.flagKey = '';
+    const floor = -cs;  // bottom of every terrain column, and the level of the grid
 
-    // terrain: one vertex per cell centre, grey by elevation like the 2D view
+    // ground grid (100 m squares for a 10 m map cell), wider than the map
+    const grid = new THREE.GridHelper(this.size * 2, 2 * n / 10, rgb(GRID), rgb(GRID));
+    grid.position.y = floor;
+    this.world.add(grid);
+
+    // terrain: one column per cell with a small gap, grey by elevation
     let hi = -Infinity;
     for (const e of elevation) hi = Math.max(hi, e);
-    const positions = new Float32Array(n * n * 3), colors = new Float32Array(n * n * 3);
+    const ground = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial(), n * n);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion();
     for (let r = 0; r < n; r++) {
       for (let c = 0; c < n; c++) {
-        const i = r * n + c, p = this.pos([r, c]);
-        positions.set([p.x, p.y, p.z], i * 3);
-        const g = (elevation[i] - this.z0) / Math.max(hi - this.z0, 1e-9) * 180 + 50;
-        colors.set(rgb([g, g, g]).toArray(), i * 3);
+        const i = r * n + c, top = this.pos([r, c]);
+        const h = top.y - floor;
+        m.compose(new THREE.Vector3(top.x, floor + h / 2, top.z), q, new THREE.Vector3(cs * 0.92, h, cs * 0.92));
+        ground.setMatrixAt(i, m);
+        const g = GROUND[0] + (elevation[i] - this.z0) / Math.max(hi - this.z0, 1e-9) * (GROUND[1] - GROUND[0]);
+        ground.setColorAt(i, rgb([g, g, g]));
       }
     }
-    const index = [];
-    for (let r = 0; r + 1 < n; r++) {
-      for (let c = 0; c + 1 < n; c++) {
-        const a = r * n + c, b = a + 1, d = a + n, e = d + 1;
-        index.push(a, d, b, b, d, e);
-      }
-    }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geo.setIndex(index);
-    geo.computeVertexNormals();
-    this.world.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true })));
+    ground.frustumCulled = false;
+    this.world.add(ground);
 
     this.obstacleGroup = new THREE.Group();
     this.world.add(this.obstacleGroup);
     this.buildObstacles();
 
-    // path: one small tile per cell
-    this.pathMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(cs * 0.8, cs * 0.25, cs * 0.8),
-      new THREE.MeshBasicMaterial({ color: rgb(COLORS.path) }), MAX_PATH);
-    this.pathMesh.count = 0;
-    this.pathMesh.frustumCulled = false;
-    this.planMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(cs * 0.6, cs * 0.25, cs * 0.6),
-      new THREE.MeshBasicMaterial({ color: rgb(COLORS.plan) }), MAX_PATH);
-    this.planMesh.count = 0;
-    this.planMesh.frustumCulled = false;
+    // path: one bar per step between two cells, so it reads as a line that follows the ground
+    const bar = () => {
+      const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial(), MAX_PATH);
+      mesh.count = 0;
+      mesh.frustumCulled = false;
+      return mesh;
+    };
+    this.pathMesh = bar();
+    this.pathMesh.material.color = rgb([40, 120, 235]);
+    this.planMesh = bar();
+    this.planMesh.material.color = rgb(COLORS.plan);
     this.world.add(this.pathMesh, this.planMesh);
 
-    // UGV: a ball with a thin beam so it can be found from far away
-    this.ugv = new THREE.Group();
-    this.ugv.add(new THREE.Mesh(new THREE.SphereGeometry(cs * 0.75, 20, 14), new THREE.MeshLambertMaterial({ color: rgb(COLORS.ugv) })));
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(cs * 0.08, cs * 0.08, cs * 6, 6),
-      new THREE.MeshBasicMaterial({ color: rgb(COLORS.ugv), transparent: true, opacity: 0.55 }));
-    beam.position.y = cs * 3;
-    this.ugv.add(beam);
+    // UGV: magenta ball
+    this.ugv = new THREE.Mesh(new THREE.SphereGeometry(cs * 0.8, 24, 16), new THREE.MeshLambertMaterial({ color: rgb([225, 50, 225]) }));
     this.world.add(this.ugv);
 
     // base: cyan frame
@@ -174,10 +180,10 @@ export class View3D {
     base.position.copy(this.pos(this.map.base, cs * 0.6));
     this.world.add(base);
 
-    // gates: two pillars and a beam
+    // gates: two pillars and a beam, with the name above
     for (const lm of this.map.landmarks) {
       const gate = new THREE.Group();
-      const mat = new THREE.MeshLambertMaterial({ color: rgb(COLORS.gate) });
+      const mat = new THREE.MeshLambertMaterial({ color: rgb([200, 200, 200]) });
       for (const x of [-0.9, 0.9]) {
         const pillar = new THREE.Mesh(new THREE.BoxGeometry(cs * 0.4, cs * 2, cs * 0.4), mat);
         pillar.position.set(x * cs, cs, 0);
@@ -186,6 +192,9 @@ export class View3D {
       const top = new THREE.Mesh(new THREE.BoxGeometry(cs * 2.2, cs * 0.4, cs * 0.4), mat);
       top.position.y = cs * 2.2;
       gate.add(top);
+      const name = label(lm.name.replace(/\s*\(.*\)/, '').replace(' ', '-')).fit(cs * 2.4);
+      name.position.y = cs * 4.4;
+      gate.add(name);
       gate.position.copy(this.pos(lm.cell));
       this.world.add(gate);
     }
@@ -207,7 +216,7 @@ export class View3D {
     const m = new THREE.Matrix4(), q = new THREE.Quaternion();
     cells.forEach(([r, c, cls], i) => {
       const h = HEIGHT[cls] * cs;
-      m.compose(this.pos([r, c], h / 2), q, new THREE.Vector3(cs * 0.96, h, cs * 0.96));
+      m.compose(this.pos([r, c], h / 2), q, new THREE.Vector3(cs * 0.92, h, cs * 0.92));
       mesh.setMatrixAt(i, m);
       mesh.setColorAt(i, rgb(BOX_RGB[cls]));
     });
@@ -217,12 +226,15 @@ export class View3D {
     this.obstacleGroup.add(mesh);
   }
 
-  setTiles(mesh, cells, lift) {
-    const m = new THREE.Matrix4();
-    const count = Math.min(cells.length, MAX_PATH);
+  /** Draw cells as a line of bars, each from one cell centre to the next. */
+  setLine(mesh, cells, lift, width) {
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), z = new THREE.Vector3(0, 0, 1);
+    const count = Math.max(0, Math.min(cells.length - 1, MAX_PATH));
     for (let i = 0; i < count; i++) {
-      const p = this.pos(cells[i], lift);
-      m.makeTranslation(p.x, p.y, p.z);
+      const a = this.pos(cells[i], lift), b = this.pos(cells[i + 1], lift);
+      const d = b.clone().sub(a), len = d.length();
+      q.setFromUnitVectors(z, d.normalize());
+      m.compose(a.add(b).multiplyScalar(0.5), q, new THREE.Vector3(width, width, len + width));
       mesh.setMatrixAt(i, m);
     }
     mesh.count = count;
@@ -235,16 +247,15 @@ export class View3D {
     for (const p of state.status.points) {
       const active = p.pid === state.status.target;
       const flag = new THREE.Group();
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(cs * 0.1, cs * 0.1, cs * 4, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-      pole.position.y = cs * 2;
-      const shape = new THREE.BufferGeometry();
-      shape.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, cs * 4, 0, 0, cs * 2.6, 0, cs * 2.2, cs * 3.3, 0]), 3));
-      const pennant = new THREE.Mesh(shape, new THREE.MeshBasicMaterial({ color: active ? 0xff5a36 : rgb(COLORS.flag), side: THREE.DoubleSide }));
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(cs * 0.08, cs * 0.08, cs * 2.4, 6), new THREE.MeshBasicMaterial({ color: 0xd8d8d8 }));
+      pole.position.y = cs * 1.2;
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(cs * 0.7, 20, 14),
+        new THREE.MeshLambertMaterial({ color: rgb(active ? [255, 140, 20] : [240, 200, 20]) }));
+      ball.position.y = cs * 2.6;
       const visits = state.visits[p.pid] ?? 0;
-      const text = label(`${p.pid}${visits ? ` ·${visits}` : ''}`, COLORS.flag);
-      text.scale.set(cs * 7, cs * 3.5, 1);
-      text.position.y = cs * 6;
-      flag.add(pole, pennant, text);
+      const text = label(visits ? `${p.pid} (${visits})` : p.pid).fit(cs * 2.4);
+      text.position.y = cs * 5;
+      flag.add(pole, ball, text);
       flag.position.copy(this.pos(p.cell));
       this.flags.add(flag);
     }
@@ -260,16 +271,16 @@ export class View3D {
     if (key !== this.flagKey) { this.flagKey = key; this.buildFlags(s); }
 
     const at = Math.max(0, s.path.findIndex(([r, c]) => r === s.pos[0] && c === s.pos[1]));
-    this.setTiles(this.pathMesh, s.path.length > 1 ? s.path.slice(at) : [], cs * 0.2);
-    this.setTiles(this.planMesh, f.plan?.path ?? [], cs * 0.35);
+    this.setLine(this.pathMesh, s.path.length > 1 ? s.path.slice(at) : [], cs * 0.3, cs * 0.3);
+    this.setLine(this.planMesh, f.plan?.path ?? [], cs * 0.45, cs * 0.3);
 
     // height between two cells is blended so the ball does not jump
     const [r, c] = f.ugv;
     const a = this.pos([Math.floor(r), Math.floor(c)]), b = this.pos([Math.ceil(r), Math.ceil(c)]);
     const t = (r - Math.floor(r)) + (c - Math.floor(c));
-    this.ugv.position.set((c + 0.5) * cs - this.size / 2, a.y + (b.y - a.y) * t + cs * 0.75, (r + 0.5) * cs - this.size / 2);
+    this.ugv.position.set((c + 0.5) * cs - this.size / 2, a.y + (b.y - a.y) * t + cs * 0.8, (r + 0.5) * cs - this.size / 2);
 
-    const o = this.orbit, d = this.size * 1.45 * o.dist;
+    const o = this.orbit, d = this.size * 1.6 * o.dist;
     this.camera.position.set(
       this.target.x + d * Math.sin(o.polar) * Math.sin(o.az),
       this.target.y + d * Math.cos(o.polar),
