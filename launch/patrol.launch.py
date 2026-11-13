@@ -7,7 +7,7 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
@@ -54,7 +54,30 @@ def generate_launch_description():
         Node(package='tf2_ros', executable='static_transform_publisher', name='map_frame', output='log',
              arguments=['--frame-id', 'world', '--child-frame-id', 'map'],
              condition=IfCondition(LaunchConfiguration('rviz'))),
-        Node(package='rviz2', executable='rviz2', name='rviz2', output='log',
-             arguments=['-d', os.path.join(share, 'rviz', 'patrol.rviz')],
-             condition=IfCondition(LaunchConfiguration('rviz'))),
+        OpaqueFunction(function=rviz_node, kwargs={'share': share}, condition=IfCondition(LaunchConfiguration('rviz'))),
     ])
+
+
+def rviz_node(context, share):
+    """RViz2 with the camera and grid fitted to this run's map (the template is sized for one map only)."""
+    import tempfile
+
+    import numpy as np
+
+    from ugv_patrol_planner.common import load_config
+    from ugv_patrol_planner.rviz_view import write_fitted
+
+    def resolve(path):
+        return path if os.path.isabs(path) else os.path.join(share, path)
+
+    template = os.path.join(share, 'rviz', 'patrol.rviz')
+    rviz_file = template
+    try:
+        cfg = load_config(resolve(LaunchConfiguration('config').perform(context)))
+        dem = np.load(resolve(cfg.dem_file))
+        rviz_file = os.path.join(tempfile.gettempdir(), 'ugv_patrol_planner.rviz')
+        write_fitted(template, rviz_file, cfg.map_size, cfg.cell_size_m,
+                     ground_z=float(dem.min()) - 1.0, focus_z=float(dem.mean()))  # grid just under the terrain
+    except Exception as e:  # keep RViz usable with the fixed template
+        print(f'[patrol.launch] could not fit the RViz view to the map, using {template}: {e}')
+    return [Node(package='rviz2', executable='rviz2', name='rviz2', output='log', arguments=['-d', rviz_file])]
