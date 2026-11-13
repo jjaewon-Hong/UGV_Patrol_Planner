@@ -1,10 +1,13 @@
 # 2.5D 지형 기반 UGV 순찰 경로 계획 제어기
 
 [![CI](https://github.com/jjaewon-Hong/ugv_patrol_planner/actions/workflows/ci.yml/badge.svg)](https://github.com/jjaewon-Hong/ugv_patrol_planner/actions/workflows/ci.yml)
+[![Web demo](https://github.com/jjaewon-Hong/ugv_patrol_planner/actions/workflows/pages.yml/badge.svg)](https://jjaewon-hong.github.io/ugv_patrol_planner/)
 ![ROS 2 Jazzy](https://img.shields.io/badge/ROS%202-Jazzy-22314E?logo=ros)
 ![Python](https://img.shields.io/badge/Python-rclpy-3776AB?logo=python&logoColor=white)
 ![C++17](https://img.shields.io/badge/C%2B%2B17-rclcpp-00599C?logo=cplusplus&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-DeepLabV3-EE4C2C?logo=pytorch&logoColor=white)
+
+**[▶ 웹 데모 바로 열기](https://jjaewon-hong.github.io/ugv_patrol_planner/)** — 설치 없이 브라우저에서 순찰을 돌려 보고, 깃발·장애물을 직접 놓아 볼 수 있습니다.
 
 고도가 있는 격자 지형에서 무인 지상 차량(UGV)의 순찰 경로를 계획하는 ROS 2 제어기입니다. 실제 차량 없이 시뮬레이션으로 검증하며, **영남대 경산캠퍼스 항공사진에서 딥러닝으로 장애물을 찾아 만든 지도**와 실제 고도 자료 위에서 순찰합니다.
 
@@ -40,7 +43,7 @@ bash scripts/ci.sh                 # 전체 시험 (CI와 같음)
 
 ROS 2 없이 Docker로도 됩니다: `docker build -t ugv-patrol . && docker run --rm ugv-patrol`
 
-**웹 데모.** C++ 핵심(`ugv_core`)을 그대로 WebAssembly로 빌드해 브라우저에서 순찰을 돌려 볼 수 있습니다. 깃발·장애물을 클릭으로 놓고, 배터리와 등판 한계를 슬라이더로 바꿉니다.
+**[웹 데모](https://jjaewon-hong.github.io/ugv_patrol_planner/).** C++ 핵심(`ugv_core`)을 그대로 WebAssembly로 빌드해 브라우저에서 순찰을 돌립니다. 깃발·장애물을 클릭으로 놓고, 배터리와 등판 한계를 슬라이더로 바꿉니다. push마다 GitHub Pages에 자동 배포되며, 로컬에서는 이렇게 빌드합니다.
 
 ```bash
 bash scripts/setup_emsdk.sh        # 처음 한 번: Emscripten SDK 설치

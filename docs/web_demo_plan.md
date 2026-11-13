@@ -2,9 +2,9 @@
 
 면접관이 저장소를 내려받거나 ROS 2를 설치하지 않고, **링크 하나로** 이 프로젝트가 동작하는 모습을 보고 직접 만져 볼 수 있게 한다.
 
-- 주소(예정): `https://jjaewon-hong.github.io/ugv_patrol_planner/`
+- 주소: <https://jjaewon-hong.github.io/ugv_patrol_planner/>
 - 방식: C++ 핵심(`cpp/` 의 `ugv_core`)을 WebAssembly로 컴파일 + HTML/CSS/JS 화면 + GitHub Pages 정적 배포. 서버 없음.
-- 상태 (2026-11-13): 0~6단계 구현과 로컬 확인 완료. 7단계(GitHub Pages 켜기, push)와 8단계(README에 공개 주소)는 남아 있다. 12장에 진행 결과와 계획에서 달라진 점을 적었다.
+- 상태 (2026-11-13): 0~8단계 완료, 공개 주소에서 동작 확인. 12장에 진행 결과와 계획에서 달라진 점을 적었다.
 - 로컬에서 보기: `bash scripts/setup_emsdk.sh`(처음 한 번) → `bash scripts/build_web.sh` → `bash scripts/serve_web.sh` → `http://localhost:8000`
 
 ## 1. 목표와 범위
@@ -278,8 +278,8 @@ GitHub Pages를 켜는 것은 저장소 설정을 바꾸는 일이라, 단계 7�
 | 3~4 2D와 조작 | 완료 | 지도 3종, 시작·정지·처음, 속도, 깃발·장애물·경로 탐색, 배터리·등판 한계 슬라이더, 복귀 에너지 지도, 잘못된 명령. 등판 한계 15°에서 막힌 이동 46곳(README와 같은 값) |
 | 5 3D | 완료 | 지형, 장애물 상자, 경로, UGV, 깃발, 기지, 문. 끌어서 회전, 휠·핀치 확대 |
 | 6 설명·반응형 | 완료 | 폭 375 px과 1320 px, 라이트·다크에서 확인. 콘솔 오류 없음 |
-| 7 배포 | 워크플로만 작성 | `.github/workflows/pages.yml`. 저장소 Pages 설정과 push가 남음 |
-| 8 마무리 | 남음 | README에 공개 주소와 배지, About 칸 주소 |
+| 7 배포 | 완료 | 저장소 Pages를 Actions 배포로 켬. `pages.yml`이 빌드·WASM 검사·배포까지 통과, 공개 주소에서 순찰이 도는 것 확인 |
+| 8 마무리 | 완료 | README 첫머리에 데모 링크와 배지, About 칸에 주소 |
 
 **계획에서 달라진 점**
 
