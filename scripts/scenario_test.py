@@ -15,6 +15,7 @@ import os
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 
 os.environ['ROS_DOMAIN_ID'] = os.environ.get('SCENARIO_DOMAIN_ID', '77')
@@ -86,9 +87,30 @@ class Probe(Node):
         self.spin_until(0.5)  # let the controller receive the same pose/battery messages
         return ok
 
+    def stray_publishers(self) -> dict:
+        """Topics with more than one publisher: nodes of an earlier run are still on this domain."""
+        topics = ['/ugv/pose', '/mission/status', '/battery/level']
+        counts = {t: self.count_publishers(t) for t in topics}
+        return {t: n for t, n in counts.items() if n > 1}
+
     def send(self, text):
         self.pub_cmd.publish(String(data=text))
         self.spin_until(0.3)
+
+    def start(self) -> bool:
+        """Send 'start' like an operator would: if the controller has not got its first battery or
+        pose message yet (its subscriptions can match later than this probe's under load), it
+        answers with the start-condition alarm, so wait a moment and send it again."""
+        for _ in range(10):
+            seen = len(self.alarms)
+            self.send('start')
+            if self.spin_until(1.0, lambda: self.state() != '대기' or len(self.alarms) > seen) \
+                    and self.state() != '대기':
+                return True
+            if not any('시작 조건' in a for a in self.alarms[seen:]):
+                return False
+            self.spin_until(0.5)
+        return False
 
     def state(self):
         return self.statuses[-1][1]['state'] if self.statuses else None
@@ -109,18 +131,30 @@ class System:
 
     def __init__(self, scenario):
         path = os.path.join(SHARE, 'scenarios', f'{scenario}.yaml')
+        self.log = tempfile.TemporaryFile(mode='w+', encoding='utf-8', errors='replace')
         self.proc = subprocess.Popen(
             ['ros2', 'launch', 'ugv_patrol_planner', 'patrol.launch.py', 'gui:=false',
              f'drive_rate:={DRIVE_RATE}', f'scenario:={path}', f'config:={config_path(scenario)}',
              f'controller:={CONTROLLER}'],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+            stdout=self.log, stderr=subprocess.STDOUT, start_new_session=True)
 
     def stop(self):
         try:
             os.killpg(self.proc.pid, signal.SIGINT)
             self.proc.wait(timeout=10)
         except (subprocess.TimeoutExpired, ProcessLookupError):
+            pass
+        # A node left behind would keep publishing on this domain and mix into the next scenario.
+        try:
             os.killpg(self.proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        self.proc.wait()
+
+    def log_tail(self, lines=60) -> str:
+        """Last lines the launched nodes printed (shown for a failed scenario)."""
+        self.log.seek(0)
+        return ''.join(self.log.readlines()[-lines:])
 
 
 def config_path(scenario) -> str:
@@ -132,19 +166,23 @@ def config_path(scenario) -> str:
 def run(scenario, body):
     sysm = System(scenario)
     probe = Probe()
+    out = {'error': 'system did not start'}
     try:
-        if not probe.wait_ready():
-            return {'error': 'system did not start'}
-        return body(probe)
+        if probe.wait_ready():
+            stray = probe.stray_publishers()
+            out = {'error': f'nodes of an earlier run are still publishing: {stray}'} if stray else body(probe)
     finally:
         probe.destroy_node()
         sysm.stop()
+    if 'error' in out or not all(ok for ok, _ in out.values()):
+        print(f'--- node log ({scenario}, last lines) ---\n{sysm.log_tail()}--- end of node log ---', flush=True)
+    return out
 
 
 def start_patrol(p: Probe):
     for r, c in POINTS:
         p.send(f'add {r} {c}')
-    p.send('start')
+    p.start()
 
 
 def s1_s2(p: Probe):
@@ -212,7 +250,7 @@ def s4(p: Probe):
     p.spin_until(2)
     alarms = len(p.alarms)
     p.send('add 15 85')
-    p.send('start')
+    p.start()
     alive = p.spin_until(10, lambda: p.state() == '순찰 중')
     ok = alarms >= 5 and alive
     return {'S4 비정상 입력': (ok, f'경보 {alarms}개 (기대 5개 이상), 이후 정상 순찰 시작 {"예" if alive else "아니오"}')}
@@ -234,7 +272,7 @@ def s5(p: Probe):
     same = flags == scenario_points(terrain, cfg.base_cell, scenario)
     for r, c in flags:
         p.send(f'add {r} {c}')
-    p.send('start')
+    p.start()
     p.spin_until(120, lambda: len(p.visit_counts()) == len(flags))
     counts = p.visit_counts()
     entered = sorted({c for c in p.poses if terrain.is_obstacle(c)})
