@@ -6,7 +6,9 @@ operator command topic, watches the topics, and prints pass/fail per scenario.
 Runs on its own ROS_DOMAIN_ID so it does not disturb a demo that is already running.
 
     source ~/ros2_ws/install/setup.bash
-    python3 scripts/scenario_test.py
+    python3 scripts/scenario_test.py                 # Python controller
+    python3 scripts/scenario_test.py --cpp           # C++ (rclcpp) controller
+    python3 scripts/scenario_test.py --cpp s5        # only S5
 """
 import json
 import os
@@ -30,6 +32,7 @@ POINTS = [(15, 85), (85, 85), (85, 15)]
 BASE = (0, 0)
 LATCHED = QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL)
 DRIVE_RATE = 20.0  # cells per second during tests
+CONTROLLER = 'cpp' if '--cpp' in sys.argv else 'py'
 
 
 def cell(p) -> tuple:
@@ -76,7 +79,12 @@ class Probe(Node):
         return False
 
     def wait_ready(self) -> bool:
-        return self.spin_until(30, lambda: self.pub_cmd.get_subscription_count() > 0 and self.statuses)
+        """Controller is listening and the simulators already publish pose and battery.
+        (A fast-starting controller must not get 'start' before it knows where the UGV is.)"""
+        ok = self.spin_until(30, lambda: self.pub_cmd.get_subscription_count() > 0 and self.statuses
+                             and self.poses and self.battery)
+        self.spin_until(0.5)  # let the controller receive the same pose/battery messages
+        return ok
 
     def send(self, text):
         self.pub_cmd.publish(String(data=text))
@@ -103,7 +111,8 @@ class System:
         path = os.path.join(SHARE, 'scenarios', f'{scenario}.yaml')
         self.proc = subprocess.Popen(
             ['ros2', 'launch', 'ugv_patrol_planner', 'patrol.launch.py', 'gui:=false',
-             f'drive_rate:={DRIVE_RATE}', f'scenario:={path}', f'config:={config_path(scenario)}'],
+             f'drive_rate:={DRIVE_RATE}', f'scenario:={path}', f'config:={config_path(scenario)}',
+             f'controller:={CONTROLLER}'],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
     def stop(self):
@@ -235,7 +244,8 @@ def main():
     results = {}
     try:
         plan = [('default', s1_s2), ('low_battery', s3), ('default', s4), ('campus', s5)]
-        only = sys.argv[1:]  # e.g. `scenario_test.py s1_s2` runs only that one
+        only = [a for a in sys.argv[1:] if not a.startswith('--')]  # e.g. `scenario_test.py s1_s2`
+        print(f'controller: {CONTROLLER}', flush=True)
         for scenario, body in [x for x in plan if not only or x[1].__name__ in only]:
             print(f'running {body.__doc__.splitlines()[0]}', flush=True)
             out = run(scenario, body)

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/jjaewon-Hong/ugv_patrol_planner/actions/workflows/ci.yml/badge.svg)](https://github.com/jjaewon-Hong/ugv_patrol_planner/actions/workflows/ci.yml)
 
-고도 정보가 있는 격자 지형에서 무인 지상 차량(UGV)의 순찰 경로를 계획하는 제어기를, 실제 차량 없이 ROS 2 시뮬레이션으로 검증하는 소프트웨어공학 프로젝트입니다. 시험용 지형에서 검증한 뒤, **실제 지역(영남대 경산캠퍼스)의 항공 정사영상에서 장애물을 인식해 만든 지도**로 순찰하도록 확장했습니다. 경로 계획 핵심은 C++17로도 구현해 Python 버전과 같은 결과를 내는지 자동으로 확인합니다.
+고도 정보가 있는 격자 지형에서 무인 지상 차량(UGV)의 순찰 경로를 계획하는 제어기를, 실제 차량 없이 ROS 2 시뮬레이션으로 검증하는 소프트웨어공학 프로젝트입니다. 시험용 지형에서 검증한 뒤, **실제 지역(영남대 경산캠퍼스)의 항공 정사영상에서 장애물을 인식해 만든 지도**로 순찰하도록 확장했습니다. 제어기는 Python(rclpy)과 C++17(rclcpp) 두 가지로 구현했고, 같은 시험을 둘 다 통과하는지 CI에서 자동으로 확인합니다.
 
 ```
 항공 정사영상 → 이어 붙이기·자르기 → 좌표 보정(OSM) → 장애물 인식(PyTorch 분할 모델) → 장애물 격자 ┐
@@ -18,6 +18,7 @@ DEM(고도)     → 같은 10 m 격자로 리샘플링 ────────�
 | 3 | 장애물 인식: PyTorch DeepLabV3를 LoveDA로 학습해 캠퍼스 추론 (`notebooks/`), OSM 정답 지도와 IoU 비교 (`tools/campus_map.py`) | 완료 (NFR-08 기준 미달, 아래 검증 결과 참고) |
 | 4 | 좌표 보정, 고도 데이터 정합, 깃발 무작위 배치, 캠퍼스 시나리오 S5 | 완료 (`campus`: 모델 지도, `campus_osm`: OSM 지도) |
 | 5 | 핵심 알고리즘 C++17 포팅 (`cpp/`), Docker·GitHub Actions 자동 시험 | 완료 |
+| 6 | C++ ROS 2 제어기 노드 (rclcpp, U1\~U5 전부 C++) | 완료 (`controller:=cpp`) |
 
 ## 무엇을 시험하나
 
@@ -31,16 +32,29 @@ DEM(고도)     → 같은 10 m 격자로 리샘플링 ────────�
 
 인식 센서, 배터리, 구동부는 ROS 2 시뮬레이션 노드로 대체하고, 결과는 OpenCV 화면과 RViz2로 확인합니다.
 
+## 구성: Python, C++, ROS 2
+
+| 구분 | 맡은 일 | 위치 |
+|---|---|---|
+| ROS 2 | 노드 사이 통신(토픽·QoS), 실행(launch), 표시(RViz2). 언어가 달라도 같은 토픽으로 통신 | `launch/`, `rviz/` |
+| Python | 제어기(rclpy), 시뮬레이터(구동·배터리·인식), 2D 화면, 데이터 처리, 딥러닝, 시험 | `ugv_patrol_planner/`, `tools/`, `notebooks/`, `test/` |
+| C++17 | 제어기(rclcpp)와 핵심 유닛 U1\~U5 전부. Python 제어기와 토픽·메시지·QoS·상태 JSON이 같아 그대로 바꿔 끼울 수 있음 | `cpp/` (패키지 `ugv_patrol_planner_cpp`) |
+
+```
+[제어기: Python 또는 C++]  ←→  ROS 2 토픽  ←→  [구동·배터리·인식 시뮬레이터, 2D 화면, RViz2: Python]
+```
+
 ## 실행 방법 (Ubuntu 24.04 + ROS 2 Jazzy, WSL2)
 
 ```bash
 bash scripts/setup_ros2_jazzy.sh     # 처음 한 번: ROS 2 설치
-bash scripts/build.sh                # ~/ros2_ws에 빌드
+bash scripts/build.sh                # ~/ros2_ws에 Python·C++ 두 패키지 빌드
 bash scripts/run.sh                  # 제어기 + 시뮬레이션 + 2D 화면 + RViz2 실행 (run.sh low_battery, run.sh campus, run.sh campus_osm)
+bash scripts/run.sh campus cpp       # C++ 제어기로 실행 (두 번째 인자: py 또는 cpp)
 bash scripts/demo.sh                 # 다른 터미널에서: 순찰 지점 등록 후 시작 (run.sh와 같은 이름, 예: demo.sh campus)
 python3 -m pytest                    # 단위 시험 59개 (ROS 2 없이도 실행 가능)
-source ~/ros2_ws/install/setup.bash && python3 scripts/scenario_test.py   # 시나리오 시험 S1~S5
-bash scripts/ci.sh                   # CI와 같은 전체 시험 (Python, C++, C++ vs Python, 시나리오)
+source ~/ros2_ws/install/setup.bash && python3 scripts/scenario_test.py   # 시나리오 시험 S1~S5 (--cpp: C++ 제어기)
+bash scripts/ci.sh                   # CI와 같은 전체 시험 (Python, C++, C++ vs Python, 시나리오 × 두 제어기)
 ```
 
 Docker로 실행하면 ROS 2를 설치하지 않아도 됩니다. GitHub Actions도 push마다 같은 이미지로 전체 시험을 돌립니다.
@@ -66,15 +80,15 @@ docker build -t ugv-patrol . && docker run --rm ugv-patrol
 | 항목 | 결과 |
 |---|---|
 | 단위 시험 (U1\~U5, 깃발 배치, 좌표 변환) | 59개 통과 |
-| 시나리오 시험 (실제 ROS 2 실행) | S1 정상 순찰, S2 장애물 발견, S3 배터리 부족, S4 비정상 입력, S5 캠퍼스 순찰 모두 통과 |
+| 시나리오 시험 (실제 ROS 2 실행) | S1 정상 순찰, S2 장애물 발견, S3 배터리 부족, S4 비정상 입력, S5 캠퍼스 순찰을 Python·C++ 제어기 모두 통과 |
 | 정사영상 좌표 보정 | 도엽 번호로 위치를 계산한 뒤 OSM 건물 윤곽에 맞춰 13 m 보정 |
 | 분할 모델 학습 (LoveDA 검증 세트) | mIoU 0.511 (15에폭, Kaggle T4 2시간 18분), 건물 0.63, 물 0.69, 숲 0.38 |
 | 캠퍼스 인식 vs OSM (NFR-08, 기준 0.6) | 건물+숲 IoU 0.44, 건물 0.37, 숲 0.43 → **미달** |
 | 캠퍼스 모델 지도 순찰 (S5) | 장애물 칸 48 %, 깃발 3개 모두 방문, 장애물 칸 진입 0회 |
-| 재계획 시간 (100×100 지도, ROS 2 실행 중) | 평균 약 50 ms (요구사항 0.5초 이내) |
+| 재계획 지연 (S2, 장애물 보고 → 새 경로 발행) | Python 제어기 최대 48 ms, C++ 제어기 최대 8 ms (요구사항 0.5초 이내) |
 | C++ A\* vs Python A\* (지도 3종 × 200쌍) | 600개 경로가 칸 단위로 모두 같음, 비용 차이 5×10⁻¹⁰ 이하 |
 | C++ A\* 속도 | 평균 0.15\~0.24 ms, 최대 1.0 ms (Python 2.8\~5.6 ms, 최대 32 ms) → 약 20배 |
-| C++ 단위 시험 (GoogleTest) | 11개 통과 (Dijkstra 기준 최적성, 등판 한계, 장애물, 복귀 에너지, .npy 읽기) |
+| C++ 단위 시험 (GoogleTest) | 23개 통과 (U1\~U5: Dijkstra 기준 최적성, 등판 한계, 복귀 에너지, 순찰 순서, 임무 상태 전이, 상태 JSON 형식) |
 
 NFR-08 미달 원인 분석 (`tools/campus_map.py eval` 결과를 나눠 본 값):
 - **정답 지도(OSM)가 불완전함:** 모델이 찾은 숲의 48 %는 가로수·작은 숲으로 OSM에 없고, 모델이 찾은 건물의 49 %도 OSM에 없는 곳(누락 건물, 지붕 가장자리)입니다. OSM 숲 안의 27 %는 실제로는 풀밭·빈터입니다.
@@ -83,16 +97,16 @@ NFR-08 미달 원인 분석 (`tools/campus_map.py eval` 결과를 나눠 본 값
 
 다음 단계: 캠퍼스 일부를 직접 라벨링한 검증 영역으로 정답을 보완하고, 국내 항공영상 데이터로 미세 조정합니다.
 
-## C++17 코어 (`cpp/`)
+## C++17 제어기 (`cpp/`)
 
-ROS에 의존하지 않는 라이브러리로 U1 지형(경사 한계·이동 비용), U2 A\*, U4 복귀 에너지 지도(역방향 Dijkstra)를 옮겼습니다.
-
+- **`ugv_core` 라이브러리 (ROS 의존 없음):** U1 지형, U2 A\*, U3 순찰 순서, U4 복귀 에너지 지도, U5 임무 상태 기계. Python 버전처럼 U5는 ROS를 직접 부르지 않고 출력 목록(다음 칸, 경로, 상태, 경보)만 돌려줍니다.
+- **`controller` 노드 (rclcpp):** 설정 YAML(yaml-cpp)과 지도(.npy)를 읽고, Python 제어기와 같은 토픽·메시지·QoS로 통신합니다. 상태 JSON 형식까지 같아서 Python 시뮬레이터·화면·시나리오 시험을 그대로 씁니다.
 - **같은 결과 보장:** 이웃 순서와 동점 처리 규칙(f, h, 삽입 순서)을 Python과 똑같이 맞췄습니다. `tools/compare_cpp.py`가 같은 지도·같은 출발/도착 쌍으로 두 구현을 돌려 경로가 칸 단위로 같은지 확인합니다.
 - **속도:** 칸 좌표 대신 정수 인덱스와 연속 배열(`std::vector`)을 쓰고, 4방향 이동 비용을 미리 계산해 탐색 중에는 조회만 합니다.
 - **빌드:** CMake + GoogleTest, `-Wall -Wextra -Wpedantic -Werror`.
 
 ```bash
-cmake -S cpp -B build_cpp && cmake --build build_cpp -j && (cd build_cpp && ctest)
+cmake -S cpp -B build_cpp && cmake --build build_cpp -j && (cd build_cpp && ctest)   # ROS 없이 라이브러리·시험만
 echo "0 0 99 99" | build_cpp/ugv_plan data/dem_100x100.npy - 30    # 비용, 계획 시간, 경로 출력
 ```
 

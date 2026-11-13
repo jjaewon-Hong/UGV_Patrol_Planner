@@ -52,4 +52,27 @@ bool ReturnEnergyMap::should_return(Cell pos, double battery_wh, std::optional<C
   return false;
 }
 
+std::optional<Path> ReturnEnergyMap::return_path(Cell pos) const {
+  if (return_energy(pos) == kInf) return std::nullopt;
+  Path path{pos};
+  Cell c = pos;
+  const int limit = t_.size() * t_.size();
+  for (int step = 0; step < limit; ++step) {
+    if (c == base_) return path;
+    int best = -1;
+    double best_e = kInf;
+    t_.for_each_neighbor(t_.index(c), [&](int nb, double) {  // same order as the Python version
+      const double e = energy_step(c, t_.cell(nb)) + ret_[nb];
+      if (e < best_e) {
+        best = nb;
+        best_e = e;
+      }
+    });
+    if (best < 0) return std::nullopt;
+    c = t_.cell(best);
+    path.push_back(c);
+  }
+  return std::nullopt;
+}
+
 }  // namespace ugv

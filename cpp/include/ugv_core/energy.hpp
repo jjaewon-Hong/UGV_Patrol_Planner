@@ -28,6 +28,10 @@ class ReturnEnergyMap {
   double return_energy(Cell c) const { return ret_[t_.index(c)]; }
   bool should_return(Cell pos, double battery_wh, std::optional<Cell> next = std::nullopt) const;
 
+  // Minimum-energy path from pos to base, following the return energy map; nullopt if unreachable.
+  std::optional<Path> return_path(Cell pos) const;
+  Cell base() const { return base_; }
+
  private:
   const TerrainMap& t_;
   Cell base_;
