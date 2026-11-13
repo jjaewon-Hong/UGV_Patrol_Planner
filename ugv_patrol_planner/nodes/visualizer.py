@@ -2,7 +2,8 @@
 
 Shows elevation as grey shading, obstacles, planned path, patrol points, base and UGV.
 Parameters: gui (open an OpenCV window), snapshot (save the image to this file every second;
-a name with %d, e.g. /tmp/f_%04d.png, keeps numbered frames for a recording), snapshot_hz.
+a name with %d, e.g. /tmp/f_%04d.png, keeps numbered frames for a recording), snapshot_hz,
+z_scale (RViz2 only: heights above the lowest cell are multiplied by this, 1 = true scale).
 """
 import json
 
@@ -37,9 +38,13 @@ class Visualizer(Node):
         self.gui = bool(self.get_parameter('gui').value)
         self.snapshot = str(self.get_parameter('snapshot').value)
         self.declare_parameter('snapshot_hz', 1.0)
+        # RViz2 only: stretch heights above the lowest cell (1 = true scale). Planning is unaffected.
+        self.declare_parameter('z_scale', 1.0)
+        self.z_scale = float(self.get_parameter('z_scale').value)
         self.frame = 0
         self.n = self.terrain.n
         self.elev = np.array([[self.terrain.elevation((r, c)) for c in range(self.n)] for r in range(self.n)])
+        self.z0 = float(self.elev.min())
         self.obstacles = {(r, c) for r in range(self.n) for c in range(self.n) if self.terrain.is_obstacle((r, c))}
         self.obstacle_class = load_obstacle_classes(self.cfg)
         self.path: list = []
@@ -144,7 +149,8 @@ class Visualizer(Node):
     def _xyz(self, cell, lift=0.0) -> Point:
         cs = self.cfg.cell_size_m
         r, c = cell
-        return Point(x=c * cs, y=(self.n - 1 - r) * cs, z=float(self.elev[r, c]) + lift)
+        z = self.z0 + (float(self.elev[r, c]) - self.z0) * self.z_scale
+        return Point(x=c * cs, y=(self.n - 1 - r) * cs, z=z + lift)
 
     def _marker(self, mid, mtype, sx, sy, sz, rgba) -> Marker:
         m = Marker()

@@ -1,7 +1,7 @@
 """Start the controller and all simulation/display nodes.
 
 ros2 launch ugv_patrol_planner patrol.launch.py [scenario:=<file>] [gui:=true|false] [rviz:=true|false] [snapshot:=<png>]
-                                                 [controller:=py|cpp]
+                                                 [controller:=py|cpp] [z_scale:=<n>]
 """
 import os
 
@@ -28,6 +28,8 @@ def generate_launch_description():
         DeclareLaunchArgument('snapshot_hz', default_value='1.0', description='snapshots per second'),
         DeclareLaunchArgument('drive_rate', default_value='5.0', description='UGV moves per second (tests use more)'),
         DeclareLaunchArgument('controller', default_value='py', description='py (rclpy) or cpp (rclcpp controller)'),
+        DeclareLaunchArgument('z_scale', default_value='1.0',
+                              description='RViz2 height exaggeration (e.g. 5); display only, planning uses true heights'),
     ]
     common = {'config': LaunchConfiguration('config'), 'scenario': LaunchConfiguration('scenario')}
 
@@ -49,6 +51,7 @@ def generate_launch_description():
             'gui': ParameterValue(LaunchConfiguration('gui'), value_type=bool),
             'snapshot': ParameterValue(LaunchConfiguration('snapshot'), value_type=str),
             'snapshot_hz': ParameterValue(LaunchConfiguration('snapshot_hz'), value_type=float),
+            'z_scale': ParameterValue(LaunchConfiguration('z_scale'), value_type=float),
         }),
         # The markers use the 'map' frame; publish it so RViz2 has a valid fixed frame.
         Node(package='tf2_ros', executable='static_transform_publisher', name='map_frame', output='log',
@@ -75,9 +78,12 @@ def rviz_node(context, share):
     try:
         cfg = load_config(resolve(LaunchConfiguration('config').perform(context)))
         dem = np.load(resolve(cfg.dem_file))
+        z_scale = float(LaunchConfiguration('z_scale').perform(context))
+        lo = float(dem.min())  # the visualizer stretches heights above this, so it stays put
         rviz_file = os.path.join(tempfile.gettempdir(), 'ugv_patrol_planner.rviz')
         write_fitted(template, rviz_file, cfg.map_size, cfg.cell_size_m,
-                     ground_z=float(dem.min()) - 1.0, focus_z=float(dem.mean()))  # grid just under the terrain
+                     ground_z=lo - 1.0, focus_z=lo + (float(dem.mean()) - lo) * z_scale,  # grid just under the terrain
+                     z_scale=z_scale)
     except Exception as e:  # keep RViz usable with the fixed template
         print(f'[patrol.launch] could not fit the RViz view to the map, using {template}: {e}')
     return [Node(package='rviz2', executable='rviz2', name='rviz2', output='log', arguments=['-d', rviz_file])]

@@ -36,6 +36,16 @@ def test_campus_map_is_three_times_closer_than_default():
     assert campus == pytest.approx(default / 3)
 
 
+def markers_of(rviz):
+    return next(d for d in rviz['Visualization Manager']['Displays']
+                if d['Class'] == 'rviz_default_plugins/MarkerArray')
+
+
+def test_stretched_heights_are_labelled_and_true_scale_is_not():
+    assert markers_of(fit_view(template(), 100, 10.0, z_scale=5.0))['Name'] == 'Patrol map (height x5)'
+    assert markers_of(fit_view(template(), 100, 10.0))['Name'] == markers_of(template())['Name']
+
+
 def test_written_file_keeps_the_rest_of_the_template(tmp_path):
     out = tmp_path / 'fitted.rviz'
     write_fitted(TEMPLATE, str(out), 100, 10.0)

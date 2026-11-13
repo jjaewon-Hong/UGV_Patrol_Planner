@@ -63,8 +63,9 @@ bash scripts/setup_ros2_jazzy.sh     # 처음 한 번: ROS 2 설치
 bash scripts/build.sh                # ~/ros2_ws에 Python·C++ 두 패키지 빌드
 bash scripts/run.sh                  # 제어기 + 시뮬레이션 + 2D 화면 + RViz2 실행 (run.sh low_battery, run.sh campus, run.sh campus_osm)
 bash scripts/run.sh campus cpp       # C++ 제어기로 실행 (두 번째 인자: py 또는 cpp)
+bash scripts/run.sh campus cpp 5     # RViz2에서 높이를 5배로 과장해 지형 굴곡을 잘 보이게 함 (세 번째 인자, 표시만 바뀜)
 bash scripts/demo.sh                 # 다른 터미널에서: 순찰 지점 등록 후 시작 (run.sh와 같은 이름, 예: demo.sh campus)
-python3 -m pytest                    # 단위 시험 70개 (ROS 2 없이도 실행 가능)
+python3 -m pytest                    # 단위 시험 71개 (ROS 2 없이도 실행 가능)
 source ~/ros2_ws/install/setup.bash && python3 scripts/scenario_test.py   # 시나리오 시험 S1~S5 (--cpp: C++ 제어기)
 bash scripts/ci.sh                   # CI와 같은 전체 시험 (Python, C++, C++ vs Python, 시나리오 × 두 제어기)
 ```
@@ -93,7 +94,7 @@ docker build -t ugv-patrol . && docker run --rm ugv-patrol
 
 | 항목 | 결과 |
 |---|---|
-| 단위 시험 (U1\~U5, 깃발 배치, 좌표 변환, 라벨링 도구, RViz 시점, 장애물 종류) | 70개 통과 |
+| 단위 시험 (U1\~U5, 깃발 배치, 좌표 변환, 라벨링 도구, RViz 시점, 장애물 종류) | 71개 통과 |
 | 시나리오 시험 (실제 ROS 2 실행) | S1 정상 순찰, S2 장애물 발견, S3 배터리 부족, S4 비정상 입력, S5 캠퍼스 순찰을 Python·C++ 제어기 모두 통과 |
 | 정사영상 좌표 보정 | 도엽 번호로 위치를 계산한 뒤 OSM 건물 윤곽에 맞춰 13 m 보정 |
 | 분할 모델 학습 (LoveDA 검증 세트) | mIoU 0.511 (15에폭, Kaggle T4 2시간 18분), 건물 0.63, 물 0.69, 숲 0.38 |
