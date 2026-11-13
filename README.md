@@ -1,6 +1,10 @@
 # 2.5D 지형 기반 UGV 순찰 경로 계획 제어기
 
 [![CI](https://github.com/jjaewon-Hong/ugv_patrol_planner/actions/workflows/ci.yml/badge.svg)](https://github.com/jjaewon-Hong/ugv_patrol_planner/actions/workflows/ci.yml)
+![ROS 2 Jazzy](https://img.shields.io/badge/ROS%202-Jazzy-22314E?logo=ros)
+![Python](https://img.shields.io/badge/Python-rclpy-3776AB?logo=python&logoColor=white)
+![C++17](https://img.shields.io/badge/C%2B%2B17-rclcpp-00599C?logo=cplusplus&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-DeepLabV3-EE4C2C?logo=pytorch&logoColor=white)
 
 고도 정보가 있는 격자 지형에서 무인 지상 차량(UGV)의 순찰 경로를 계획하는 제어기를, 실제 차량 없이 ROS 2 시뮬레이션으로 검증하는 소프트웨어공학 프로젝트입니다. 시험용 지형에서 검증한 뒤, **실제 지역(영남대 경산캠퍼스)의 항공 정사영상에서 장애물을 인식해 만든 지도**로 순찰하도록 확장했습니다. 제어기는 Python(rclpy)과 C++17(rclcpp) 두 가지로 구현했고, 같은 시험을 둘 다 통과하는지 CI에서 자동으로 확인합니다.
 
