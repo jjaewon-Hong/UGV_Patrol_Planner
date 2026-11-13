@@ -191,6 +191,9 @@ def s3(p: Probe):
     """Low battery: must return to base before running out (NFR-03)."""
     start_patrol(p)
     done = p.spin_until(90, lambda: any(s.get('note') == '복귀 완료' for _, s in p.statuses))
+    # The base pose that made the controller report '복귀 완료' comes on another topic, so this
+    # probe can get the status first. Give that pose message time to arrive before checking it.
+    p.spin_until(2, lambda: bool(p.poses) and p.poses[-1] == BASE)
     went_home = any(s['state'] == '복귀 중' for _, s in p.statuses)
     low = min(p.battery) if p.battery else float('nan')
     at_base = bool(p.poses) and p.poses[-1] == BASE
