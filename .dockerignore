@@ -1,0 +1,10 @@
+.git
+.github
+**/__pycache__
+*.pdf
+images
+notebooks
+build
+install
+log
+build_cpp

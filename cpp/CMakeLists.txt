@@ -1,0 +1,37 @@
+cmake_minimum_required(VERSION 3.16)
+project(ugv_core VERSION 0.1.0 LANGUAGES CXX)
+
+# C++17 port of the planner core (TerrainMap, A*, return energy map). No ROS dependency.
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
+add_library(ugv_core src/terrain_map.cpp src/astar.cpp src/energy.cpp src/npy.cpp)
+target_include_directories(ugv_core PUBLIC include)
+target_compile_options(ugv_core PRIVATE -Wall -Wextra -Wpedantic -Werror)
+
+add_executable(ugv_plan tools/ugv_plan.cpp)
+target_link_libraries(ugv_plan PRIVATE ugv_core)
+
+option(UGV_BUILD_TESTS "Build unit tests" ON)
+if(UGV_BUILD_TESTS)
+  enable_testing()
+  find_package(GTest QUIET)
+  if(NOT GTest_FOUND)
+    if(EXISTS /usr/src/googletest/CMakeLists.txt)   # Ubuntu ships the sources
+      add_subdirectory(/usr/src/googletest ${CMAKE_BINARY_DIR}/googletest EXCLUDE_FROM_ALL)
+    else()
+      include(FetchContent)
+      FetchContent_Declare(googletest URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz)
+      FetchContent_MakeAvailable(googletest)
+    endif()
+    add_library(GTest::gtest_main ALIAS gtest_main)
+  endif()
+  add_executable(test_core test/test_core.cpp)
+  target_link_libraries(test_core PRIVATE ugv_core GTest::gtest_main)
+  include(GoogleTest)
+  gtest_discover_tests(test_core)
+endif()
