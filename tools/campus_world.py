@@ -5,7 +5,8 @@
 
 `dem` samples the elevation at the centre of every cell of the whole campus crop (same grid as the
 obstacle grid, so both line up by construction). `build` cuts an n x n window starting at cell (row0, col0)
-and writes dem.npy (float, metres) and obstacles.npy (bool) for the controller.
+and writes dem.npy (float, metres) and obstacles.npy (bool) for the controller, plus obstacle_classes.npy
+(uint8: 0 free, 1 building, 2 water, 3 tree) so the views can colour each obstacle by what it is.
 
 Elevation: Copernicus GLO-30 DEM (c) DLR/Airbus, provided under COPERNICUS by the European Union and ESA.
 It is a surface model (includes roofs and tree tops); buildings and trees are obstacles anyway.
@@ -52,21 +53,25 @@ def sample_dem(d: str, tif: str, cell_m: float = 10.0) -> np.ndarray:
     return out
 
 
-def obstacle_grid(d: str, source: str, cell_m: float = 10.0) -> np.ndarray:
+def obstacle_grid(d: str, source: str, cell_m: float = 10.0) -> tuple[np.ndarray, np.ndarray]:
+    """Obstacle cells (bool) and what they are (uint8: 0 free, 1 building, 2 water, 3 forest = osm_mask.CLASSES).
+
+    A cell is an obstacle when building + water + forest cover at least RATIO of it; its class is the
+    largest of the three, so the obstacle grid itself does not depend on the classes.
+    """
     size = _size(d, EVAL_GSD)
-    if source == 'osm':
-        obs = rasterize(d, EVAL_GSD, size) > 0
-    else:
-        obs = load_pred(source, size) > 0
+    labels = rasterize(d, EVAL_GSD, size) if source == 'osm' else load_pred(source, size)
     k = int(round(cell_m / EVAL_GSD))
-    rows, cols = obs.shape[0] // k, obs.shape[1] // k
-    frac = obs[:rows * k, :cols * k].reshape(rows, k, cols, k).mean(axis=(1, 3))
-    return frac >= RATIO
+    rows, cols = labels.shape[0] // k, labels.shape[1] // k
+    cells = labels[:rows * k, :cols * k].reshape(rows, k, cols, k)
+    frac = np.stack([(cells == c).mean(axis=(1, 3)) for c in (1, 2, 3)])
+    obs = frac.sum(axis=0) >= RATIO
+    return obs, np.where(obs, frac.argmax(axis=0) + 1, 0).astype(np.uint8)
 
 
 def build(d: str, source: str, out_dir: str, row0: int, col0: int, n: int = 100, cell_m: float = 10.0) -> None:
     dem = np.load(os.path.join(d, f'campus_dem_{cell_m:g}m.npy'))
-    obs = obstacle_grid(d, source, cell_m)
+    obs, cls = obstacle_grid(d, source, cell_m)
     rows, cols = min(dem.shape[0], obs.shape[0]), min(dem.shape[1], obs.shape[1])
     if row0 + n > rows or col0 + n > cols:
         raise SystemExit(f'window {row0}+{n}, {col0}+{n} exceeds grid {rows}x{cols}')
@@ -74,6 +79,7 @@ def build(d: str, source: str, out_dir: str, row0: int, col0: int, n: int = 100,
     os.makedirs(out_dir, exist_ok=True)
     np.save(os.path.join(out_dir, 'dem.npy'), dem[win].astype(np.float64))
     np.save(os.path.join(out_dir, 'obstacles.npy'), obs[win])
+    np.save(os.path.join(out_dir, 'obstacle_classes.npy'), cls[win])  # display only (building / water / tree colours)
     # preview: photo with obstacle cells tinted red
     img = cv2.imread(os.path.join(d, 'campus_1m.jpg'))
     px = int(cell_m)                                  # campus_1m.jpg is 1 m/px

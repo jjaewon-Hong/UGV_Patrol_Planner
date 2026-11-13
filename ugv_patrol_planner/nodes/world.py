@@ -1,6 +1,7 @@
 """Loading shared by all nodes: config, terrain map and scenario file."""
 import os
 
+import numpy as np
 import yaml
 from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import Point
@@ -18,6 +19,13 @@ def share_path(*parts: str) -> str:
 
 def _resolve(path: str) -> str:
     return path if os.path.isabs(path) else share_path(path)
+
+
+def load_obstacle_classes(cfg: Config) -> np.ndarray:
+    """N x N grid of what each known obstacle is (1 building, 2 water, 3 tree); all 0 when the map has none."""
+    if not cfg.obstacle_class_file:
+        return np.zeros((cfg.map_size, cfg.map_size), np.uint8)
+    return np.load(_resolve(cfg.obstacle_class_file))
 
 
 def load_world(node: Node) -> tuple[Config, TerrainMap, dict]:

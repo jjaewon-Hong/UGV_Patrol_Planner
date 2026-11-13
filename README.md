@@ -52,12 +52,12 @@ bash scripts/build.sh                # ~/ros2_ws에 Python·C++ 두 패키지 �
 bash scripts/run.sh                  # 제어기 + 시뮬레이션 + 2D 화면 + RViz2 실행 (run.sh low_battery, run.sh campus, run.sh campus_osm)
 bash scripts/run.sh campus cpp       # C++ 제어기로 실행 (두 번째 인자: py 또는 cpp)
 bash scripts/demo.sh                 # 다른 터미널에서: 순찰 지점 등록 후 시작 (run.sh와 같은 이름, 예: demo.sh campus)
-python3 -m pytest                    # 단위 시험 67개 (ROS 2 없이도 실행 가능)
+python3 -m pytest                    # 단위 시험 70개 (ROS 2 없이도 실행 가능)
 source ~/ros2_ws/install/setup.bash && python3 scripts/scenario_test.py   # 시나리오 시험 S1~S5 (--cpp: C++ 제어기)
 bash scripts/ci.sh                   # CI와 같은 전체 시험 (Python, C++, C++ vs Python, 시나리오 × 두 제어기)
 ```
 
-RViz2 카메라와 격자는 실행할 때 지도 크기(칸 수 × 칸 크기)에 맞춰 잡힙니다. 그래서 3 km 기본 지도와 1 km 캠퍼스 지도 모두 화면 가운데에 꽉 차게 보입니다(`ugv_patrol_planner/rviz_view.py`). `rviz/patrol.rviz`는 그 틀로 쓰는 원본입니다.
+RViz2 카메라와 격자는 실행할 때 지도 크기(칸 수 × 칸 크기)에 맞춰 잡힙니다. 그래서 3 km 기본 지도와 1 km 캠퍼스 지도 모두 화면 가운데에 꽉 차게 보입니다(`ugv_patrol_planner/rviz_view.py`). `rviz/patrol.rviz`는 그 틀로 쓰는 원본입니다. 캠퍼스 지도에서는 장애물을 종류별 색으로 표시합니다. 건물은 빨강, 나무는 초록, 물은 하늘색입니다. 이 정보는 `obstacle_classes.npy`에서 읽으며, 화면 표시에만 쓰고 경로 계획에는 쓰지 않습니다. 종류를 모르는 장애물은 빨강으로 표시합니다. 시험용 지도의 장애물과 센서로 새로 찾은 장애물이 여기에 해당합니다. UGV는 나무와 구분되도록 자홍색으로 표시합니다.
 
 Docker로 실행하면 ROS 2를 설치하지 않아도 됩니다. GitHub Actions도 push마다 같은 이미지로 전체 시험을 돌립니다.
 

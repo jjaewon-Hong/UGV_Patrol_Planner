@@ -4,6 +4,7 @@
 map:
   dem_file: data/campus_pred/dem.npy             # Copernicus GLO-30, resampled to 10 m cells
   obstacle_file: data/campus_pred/obstacles.npy   # cell is an obstacle when >= 30 % of it is building/water/forest
+  obstacle_class_file: data/campus_pred/obstacle_classes.npy   # display only: building red, water blue, tree green
   size: 100
   cell_size_m: 10.0
   static_obstacles: []

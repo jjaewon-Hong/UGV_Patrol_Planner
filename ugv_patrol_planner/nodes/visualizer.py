@@ -16,12 +16,16 @@ from rclpy.qos import DurabilityPolicy, QoSProfile
 from std_msgs.msg import ColorRGBA, Float32, String
 from visualization_msgs.msg import Marker, MarkerArray
 
-from ugv_patrol_planner.nodes.world import load_world, to_cell
+from ugv_patrol_planner.nodes.world import load_obstacle_classes, load_world, to_cell
 
 LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
 SCALE = 6  # screen pixels per cell
 # BGR colours
-RED, BLUE, GREEN, YELLOW, CYAN, WHITE = (40, 40, 220), (220, 120, 30), (60, 200, 60), (0, 210, 255), (200, 200, 0), (255, 255, 255)
+RED, BLUE, YELLOW, CYAN, WHITE = (40, 40, 220), (220, 120, 30), (0, 210, 255), (200, 200, 0), (255, 255, 255)
+MAGENTA = (230, 60, 230)  # UGV; green is taken by trees
+# Obstacle colour by class (obstacle_class_file): 0 unknown (config / found by the sensor), 1 building, 2 water, 3 tree
+OBSTACLE_BGR = {0: RED, 1: RED, 2: (230, 190, 90), 3: (50, 150, 40)}
+LEGEND = (('building', 1), ('water', 2), ('tree', 3))
 
 
 class Visualizer(Node):
@@ -37,6 +41,7 @@ class Visualizer(Node):
         self.n = self.terrain.n
         self.elev = np.array([[self.terrain.elevation((r, c)) for c in range(self.n)] for r in range(self.n)])
         self.obstacles = {(r, c) for r in range(self.n) for c in range(self.n) if self.terrain.is_obstacle((r, c))}
+        self.obstacle_class = load_obstacle_classes(self.cfg)
         self.path: list = []
         self.pos = None
         self.status: dict = {}
@@ -86,7 +91,8 @@ class Visualizer(Node):
     def render(self) -> np.ndarray:
         img = self.base_img.copy()
         for r, c in self.obstacles:
-            cv2.rectangle(img, (c * SCALE, r * SCALE), ((c + 1) * SCALE - 1, (r + 1) * SCALE - 1), RED, -1)
+            colour = OBSTACLE_BGR[int(self.obstacle_class[r, c])]
+            cv2.rectangle(img, (c * SCALE, r * SCALE), ((c + 1) * SCALE - 1, (r + 1) * SCALE - 1), colour, -1)
         if len(self.path) > 1:
             pts = np.array([self._px(c) for c in self.path], dtype=np.int32)
             cv2.polylines(img, [pts], False, BLUE, 2)
@@ -97,7 +103,8 @@ class Visualizer(Node):
             self._flag(img, x, y, p['pid'] == self.status.get('target'))
             cv2.putText(img, p['pid'], (x + 12, y - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.4, YELLOW, 1)
         if self.pos is not None:
-            cv2.circle(img, self._px(self.pos), 5, GREEN, -1)
+            cv2.circle(img, self._px(self.pos), 5, MAGENTA, -1)
+            cv2.circle(img, self._px(self.pos), 5, WHITE, 1)
         # Status bar above the map (not on top of it), so row 0 stays visible.
         state = self.status.get('state', '-')
         # OpenCV fonts cannot draw Korean; show the English state name.
@@ -106,6 +113,13 @@ class Visualizer(Node):
         bar = np.full((24, img.shape[1], 3), 30, dtype=np.uint8)
         cv2.putText(bar, f"state: {names.get(state, state)}   target: {self.status.get('target') or '-'}"
                     f"   battery: {battery}", (6, 16), cv2.FONT_HERSHEY_SIMPLEX, 0.45, WHITE, 1)
+        if self.obstacle_class.any():  # colour key, only for maps that know what their obstacles are
+            x = img.shape[1] - 6
+            for name, cls in reversed(LEGEND):
+                x -= cv2.getTextSize(name, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)[0][0]
+                cv2.putText(bar, name, (x, 16), cv2.FONT_HERSHEY_SIMPLEX, 0.4, WHITE, 1)
+                cv2.rectangle(bar, (x - 13, 7), (x - 4, 16), OBSTACLE_BGR[cls], -1)
+                x -= 22
         return np.vstack([bar, img])
 
     @staticmethod
@@ -154,8 +168,11 @@ class Visualizer(Node):
                 g = float(0.2 + 0.7 * (e[r, c] - lo) / span)
                 terrain.colors.append(ColorRGBA(r=g, g=g, b=g, a=1.0))
         out.markers.append(terrain)
-        obs = self._marker(1, Marker.CUBE_LIST, cs, cs, cs, (0.9, 0.15, 0.15, 1))
-        obs.points = [self._xyz(c, cs / 2) for c in self.obstacles]
+        obs = self._marker(1, Marker.CUBE_LIST, cs, cs, cs, (1, 1, 1, 1))
+        for cell in self.obstacles:
+            obs.points.append(self._xyz(cell, cs / 2))
+            b, g, r = OBSTACLE_BGR[int(self.obstacle_class[cell])]
+            obs.colors.append(ColorRGBA(r=r / 255, g=g / 255, b=b / 255, a=1.0))
         out.markers.append(obs)
         path = self._marker(2, Marker.LINE_STRIP, cs / 4, 0, 0, (0.1, 0.45, 0.9, 1))
         path.points = [self._xyz(c, cs / 6) for c in self.path]
@@ -164,7 +181,7 @@ class Visualizer(Node):
         pts.points = [self._xyz(tuple(p['cell']), cs / 2) for p in self.status.get('points', [])]
         out.markers.append(pts)
         if self.pos is not None:
-            ugv = self._marker(4, Marker.SPHERE, 1.3 * cs, 1.3 * cs, 1.3 * cs, (0.2, 0.85, 0.2, 1))
+            ugv = self._marker(4, Marker.SPHERE, 1.3 * cs, 1.3 * cs, 1.3 * cs, (0.9, 0.25, 0.9, 1))  # MAGENTA
             ugv.pose.position = self._xyz(self.pos, 0.7 * cs)
             out.markers.append(ugv)
         self.pub_markers.publish(out)
