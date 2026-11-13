@@ -23,7 +23,9 @@ def generate_launch_description():
         DeclareLaunchArgument('scenario', default_value=os.path.join(share, 'scenarios', 'default.yaml')),
         DeclareLaunchArgument('gui', default_value='true', description='open the OpenCV window'),
         DeclareLaunchArgument('rviz', default_value='false', description='also start RViz2'),
-        DeclareLaunchArgument('snapshot', default_value='', description='save the 2D view to this PNG every second'),
+        DeclareLaunchArgument('snapshot', default_value='',
+                              description='save the 2D view to this PNG (use %d in the name for numbered frames)'),
+        DeclareLaunchArgument('snapshot_hz', default_value='1.0', description='snapshots per second'),
         DeclareLaunchArgument('drive_rate', default_value='5.0', description='UGV moves per second (tests use more)'),
         DeclareLaunchArgument('controller', default_value='py', description='py (rclpy) or cpp (rclcpp controller)'),
     ]
@@ -46,6 +48,7 @@ def generate_launch_description():
         node('visualizer', {
             'gui': ParameterValue(LaunchConfiguration('gui'), value_type=bool),
             'snapshot': ParameterValue(LaunchConfiguration('snapshot'), value_type=str),
+            'snapshot_hz': ParameterValue(LaunchConfiguration('snapshot_hz'), value_type=float),
         }),
         # The markers use the 'map' frame; publish it so RViz2 has a valid fixed frame.
         Node(package='tf2_ros', executable='static_transform_publisher', name='map_frame', output='log',

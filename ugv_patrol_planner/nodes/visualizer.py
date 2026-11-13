@@ -1,7 +1,8 @@
 """visualizer (View): 2D OpenCV map and RViz2 markers (FR-17).
 
 Shows elevation as grey shading, obstacles, planned path, patrol points, base and UGV.
-Parameters: gui (open an OpenCV window), snapshot (save the image to this file every second).
+Parameters: gui (open an OpenCV window), snapshot (save the image to this file every second;
+a name with %d, e.g. /tmp/f_%04d.png, keeps numbered frames for a recording), snapshot_hz.
 """
 import json
 
@@ -31,6 +32,8 @@ class Visualizer(Node):
         self.declare_parameter('snapshot', '')
         self.gui = bool(self.get_parameter('gui').value)
         self.snapshot = str(self.get_parameter('snapshot').value)
+        self.declare_parameter('snapshot_hz', 1.0)
+        self.frame = 0
         self.n = self.terrain.n
         self.elev = np.array([[self.terrain.elevation((r, c)) for c in range(self.n)] for r in range(self.n)])
         self.obstacles = {(r, c) for r in range(self.n) for c in range(self.n) if self.terrain.is_obstacle((r, c))}
@@ -49,7 +52,7 @@ class Visualizer(Node):
         self.create_timer(0.1, self.draw)
         self.create_timer(1.0, self.publish_markers)
         if self.snapshot:
-            self.create_timer(1.0, self.save_snapshot)
+            self.create_timer(1.0 / float(self.get_parameter('snapshot_hz').value), self.save_snapshot)
 
     # -------------------------------------------------------------- inputs
     def on_pose(self, msg):
@@ -119,7 +122,9 @@ class Visualizer(Node):
             cv2.waitKey(1)
 
     def save_snapshot(self):
-        cv2.imwrite(self.snapshot, self.render())
+        path = self.snapshot % self.frame if '%' in self.snapshot else self.snapshot
+        cv2.imwrite(path, self.render())
+        self.frame += 1
 
     # -------------------------------------------------------------- RViz2 markers
     def _xyz(self, cell, lift=0.0) -> Point:
