@@ -28,6 +28,7 @@ class Config:
     dem_file: str = 'data/dem_100x100.npy'
     obstacle_file: str = ''          # optional N x N bool grid of known obstacles (FR-20)
     obstacle_class_file: str = ''    # optional N x N uint8 grid, 1 building / 2 water / 3 tree (display only)
+    landmarks: tuple[tuple[str, Cell], ...] = field(default_factory=tuple)  # (label, cell), display only, e.g. gates
     map_size: int = 100
     cell_size_m: float = 30.0
     static_obstacles: tuple[Cell, ...] = field(default_factory=tuple)
@@ -58,6 +59,7 @@ def load_config(path: str) -> Config:
         map_size=int(m.get('size', d.map_size)),
         cell_size_m=float(m.get('cell_size_m', d.cell_size_m)),
         static_obstacles=tuple(tuple(c) for c in m.get('static_obstacles', [])),
+        landmarks=tuple((str(lm['name']), tuple(lm['cell'])) for lm in m.get('landmarks', [])),
         max_slope_deg=float(t.get('max_slope_deg', d.max_slope_deg)),
         slope_weight=float(t.get('slope_weight', d.slope_weight)),
         sensor_radius=int(s.get('radius_cells', d.sensor_radius)),

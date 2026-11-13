@@ -1,6 +1,6 @@
 """visualizer (View): 2D OpenCV map and RViz2 markers (FR-17).
 
-Shows elevation as grey shading, obstacles, planned path, patrol points, base and UGV.
+Shows elevation as grey shading, obstacles, planned path, patrol points, base, UGV and landmark gates.
 Parameters: gui (open an OpenCV window), snapshot (save the image to this file every second;
 a name with %d, e.g. /tmp/f_%04d.png, keeps numbered frames for a recording), snapshot_hz,
 z_scale (RViz2 only: heights above the lowest cell are multiplied by this, 1 = true scale).
@@ -24,6 +24,7 @@ SCALE = 6  # screen pixels per cell
 # BGR colours
 RED, BLUE, YELLOW, CYAN, WHITE = (40, 40, 220), (220, 120, 30), (0, 210, 255), (200, 200, 0), (255, 255, 255)
 MAGENTA = (230, 60, 230)  # UGV; green is taken by trees
+GATE_GREY = (185, 185, 185)  # campus gates (config map.landmarks)
 # Obstacle colour by class (obstacle_class_file): 0 unknown (config / found by the sensor), 1 building, 2 water, 3 tree
 OBSTACLE_BGR = {0: RED, 1: RED, 2: (230, 190, 90), 3: (50, 150, 40)}
 LEGEND = (('building', 1), ('water', 2), ('tree', 3))
@@ -101,6 +102,8 @@ class Visualizer(Node):
         if len(self.path) > 1:
             pts = np.array([self._px(c) for c in self.path], dtype=np.int32)
             cv2.polylines(img, [pts], False, BLUE, 2)
+        for label, cell in self.cfg.landmarks:
+            self._gate(img, *self._px(cell), label)
         bx, by = self._px(tuple(self.cfg.base_cell))
         cv2.rectangle(img, (max(bx - 6, 0), max(by - 6, 0)), (bx + 6, by + 6), CYAN, 2)  # base, kept on screen
         for p in self.status.get('points', []):
@@ -126,6 +129,21 @@ class Visualizer(Node):
                 cv2.rectangle(bar, (x - 13, 7), (x - 4, 16), OBSTACLE_BGR[cls], -1)
                 x -= 22
         return np.vstack([bar, img])
+
+    @staticmethod
+    def _gate(img, x, y, label):
+        """Landmark gate as a grey arch (two pillars and a beam), kept on screen, with its name beside it."""
+        h, w = img.shape[:2]
+        x, y = min(max(x, 8), w - 9), min(max(y, 4), h - 12)
+        arch = np.array([[x - 7, y + 9], [x - 7, y - 3], [x + 7, y - 3], [x + 7, y + 9],
+                         [x + 3, y + 9], [x + 3, y + 1], [x - 3, y + 1], [x - 3, y + 9]], dtype=np.int32)
+        cv2.fillPoly(img, [arch], GATE_GREY)
+        cv2.polylines(img, [arch], True, (40, 40, 40), 1)
+        tw, th = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)[0]
+        tx = x + 11 if x + 11 + tw < w else x - 11 - tw          # text on the side that has room
+        ty = y + 8
+        cv2.rectangle(img, (tx - 2, ty - th - 2), (tx + tw + 2, ty + 3), (40, 40, 40), -1)
+        cv2.putText(img, label, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.4, WHITE, 1)
 
     @staticmethod
     def _flag(img, x, y, active):
@@ -190,7 +208,27 @@ class Visualizer(Node):
             ugv = self._marker(4, Marker.SPHERE, 1.3 * cs, 1.3 * cs, 1.3 * cs, (0.9, 0.25, 0.9, 1))  # MAGENTA
             ugv.pose.position = self._xyz(self.pos, 0.7 * cs)
             out.markers.append(ugv)
+        out.markers.extend(self._gate_markers(cs))
         self.pub_markers.publish(out)
+
+    def _gate_markers(self, cs) -> list:
+        """Gates (config map.landmarks) as grey arches: two pillars and a beam, with the name above."""
+        if not self.cfg.landmarks:
+            return []
+        grey = tuple(v / 255 for v in GATE_GREY) + (1.0,)
+        pillars = self._marker(5, Marker.CUBE_LIST, 0.5 * cs, 0.5 * cs, 3 * cs, grey)
+        beam = self._marker(6, Marker.CUBE_LIST, 2.5 * cs, 0.5 * cs, 0.5 * cs, grey)
+        out = [pillars, beam]
+        for i, (label, cell) in enumerate(self.cfg.landmarks):
+            p = self._xyz(tuple(cell))
+            pillars.points += [Point(x=p.x - cs, y=p.y, z=p.z + 1.5 * cs), Point(x=p.x + cs, y=p.y, z=p.z + 1.5 * cs)]
+            beam.points.append(Point(x=p.x, y=p.y, z=p.z + 3.2 * cs))
+            text = self._marker(10 + i, Marker.TEXT_VIEW_FACING, 0, 0, 2.5 * cs, (1, 1, 1, 1))
+            # RViz2 text markers drop spaces, so use a short hyphenated name there ('Main gate (300 m N)' -> 'Main-gate')
+            text.text = label.split(' (')[0].replace(' ', '-')
+            text.pose.position = Point(x=p.x, y=p.y, z=p.z + 5.5 * cs)
+            out.append(text)
+        return out
 
 
 def main():

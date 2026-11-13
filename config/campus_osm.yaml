@@ -7,6 +7,12 @@ map:
   size: 100
   cell_size_m: 10.0
   static_obstacles: []
+  # Display only: campus gates as grey arches. Both lie just outside this 1 km window, so they are drawn on
+  # the edge cell towards them. From OpenStreetMap: main gate = barrier=gate node 4069594097 next to the
+  # '정문약국' pharmacy (~300 m north of row 0); east gate = '영남대동문시내버스회차지' (just east of col 99).
+  landmarks:
+    - {name: 'Main gate (300 m N)', cell: [0, 14]}
+    - {name: 'East gate', cell: [13, 99]}
 terrain:
   # 15 deg, not the default 30: a small wheeled UGV's climbing limit (requirements v1.3, FR-03).
   # The 30 m elevation data gives at most 23.8 deg on campus, so 30 deg would never block a move here.
