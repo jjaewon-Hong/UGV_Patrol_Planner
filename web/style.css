@@ -92,6 +92,7 @@ code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size:
 .mode-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
 .label { font-size: 13px; color: var(--muted); font-weight: 600; }
 .hint { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
+#slope-note { white-space: pre-line; margin: 0; }
 .readout { font-size: 13.5px; margin: 6px 0 0; font-variant-numeric: tabular-nums; }
 #plan-readout { background: var(--soft); border-left: 3px solid var(--accent); padding: 6px 10px; border-radius: 4px; }
 
@@ -127,9 +128,6 @@ code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size:
 .slider span { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; }
 .slider output { font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
 .slider input { width: 100%; margin: 4px 0 0; accent-color: var(--accent); }
-.check { display: block; font-size: 13.5px; font-weight: 600; cursor: pointer; }
-.check small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; margin-left: 22px; }
-.check input { accent-color: var(--accent); }
 
 .log { list-style: none; margin: 0; padding: 0; max-height: 230px; overflow: auto; font-size: 13px; }
 .log li { display: flex; gap: 8px; padding: 4px 6px; border-radius: 4px; }
@@ -138,10 +136,10 @@ code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size:
 .log li.alarm { background: var(--warn-bg); color: var(--warn); font-weight: 600; }
 .log li.empty { color: var(--muted); }
 
-.foot { margin-top: 48px; padding-top: 16px; padding-bottom: 32px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+.foot { margin-top: 48px; padding-top: 16px; padding-bottom: 32px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); text-align: center; }
 .foot p { margin: 0; }
 .foot i { font-style: normal; color: var(--accent); opacity: 0.6; margin: 0 8px; }
-.sources { display: flex; flex-wrap: wrap; align-items: baseline; row-gap: 2px; }
+.sources { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; row-gap: 2px; }
 .sources b { color: var(--text); font-weight: 600; margin-right: 4px; }
 .notice { font-size: 0.9em; opacity: 0.75; margin-top: 2px !important; }
 
@@ -150,6 +148,7 @@ code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size:
 @media (min-width: 961px) and (min-height: 640px) {
   body { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
   main.wrap { flex: 1 1 auto; min-height: 0; width: 100%; }
+  .foot { width: 100%; }
   #demo, .demo-grid { height: 100%; }
   .demo-grid { align-items: stretch; }
   .stage { display: flex; flex-direction: column; min-height: 0; }

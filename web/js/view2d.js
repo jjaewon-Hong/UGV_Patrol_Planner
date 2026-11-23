@@ -17,21 +17,12 @@ export const COLORS = {
 const CLASS_RGB = [COLORS.unknown, COLORS.building, COLORS.water, COLORS.tree];
 const GATE_NAMES = { 'Main gate (300 m N)': '정문 (북쪽 300 m)', 'East gate': '동문' };
 
-/** Yellow -> pink -> purple for the return-energy overlay, t in 0..1 (colours no obstacle class uses). */
-function heat(t) {
-  const stops = [[252, 232, 100], [236, 112, 120], [110, 30, 160]];
-  const x = Math.min(1, Math.max(0, t)) * 2, i = Math.min(1, Math.floor(x)), f = x - i;
-  return stops[i].map((v, k) => Math.round(v + (stops[i + 1][k] - v) * f));
-}
-
 export class View2D {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.base = document.createElement('canvas');    // one pixel per cell: terrain + obstacles
-    this.overlay = document.createElement('canvas'); // one pixel per cell: return energy
     this.map = null;
-    this.energyOn = false;
   }
 
   setMap(map) {
@@ -39,12 +30,11 @@ export class View2D {
     const n = map.n;
     this.cell = Math.max(2, Math.floor(800 / n));
     this.canvas.width = this.canvas.height = n * this.cell;
-    this.base.width = this.base.height = this.overlay.width = this.overlay.height = n;
+    this.base.width = this.base.height = n;
     let lo = Infinity, hi = -Infinity;
     for (const e of map.elevation) { lo = Math.min(lo, e); hi = Math.max(hi, e); }
     this.grey = Uint8Array.from(map.elevation, (e) => Math.round((e - lo) / Math.max(hi - lo, 1e-9) * 180 + 50));
     this.setObstacles([]);
-    this.setEnergy(null);
   }
 
   /** learned: [[r, c], ...] obstacles found or added after the map was loaded. */
@@ -60,24 +50,6 @@ export class View2D {
     for (const [r, c] of learned) {
       this.known[r * n + c] = 1;
       img.data.set([...COLORS.learned, 255], (r * n + c) * 4);
-    }
-    ctx.putImageData(img, 0, 0);
-  }
-
-  /** energy: Float32Array of Wh to the base per cell (-1 unreachable), or null to hide. */
-  setEnergy(energy) {
-    this.energyOn = !!energy;
-    if (!energy) return;
-    const n = this.map.n;
-    const ctx = this.overlay.getContext('2d');
-    const img = ctx.createImageData(n, n);
-    let max = 0;
-    for (const e of energy) max = Math.max(max, e);
-    this.energyMax = max;
-    for (let i = 0; i < n * n; i++) {
-      if (this.known[i]) continue;                       // obstacles keep their colour
-      if (energy[i] < 0) img.data.set([0, 0, 0, 215], i * 4);     // base cannot be reached from here
-      else img.data.set([...heat(energy[i] / Math.max(max, 1e-9)), 170], i * 4);
     }
     ctx.putImageData(img, 0, 0);
   }
@@ -101,7 +73,6 @@ export class View2D {
     const W = this.canvas.width;
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(this.base, 0, 0, W, W);
-    if (this.energyOn) ctx.drawImage(this.overlay, 0, 0, W, W);
     ctx.lineJoin = ctx.lineCap = 'round';
 
     // obstacles the controller has not found yet

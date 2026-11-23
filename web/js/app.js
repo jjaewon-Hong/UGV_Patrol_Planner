@@ -29,7 +29,6 @@ const app = {
   trail: [],
   plan: { a: null, b: null, path: null },
   hover: null,
-  energyOn: false,
   zScale: 5,
   draggingBattery: false,
   stroke: null,       // cells added in the current obstacle drag
@@ -76,7 +75,6 @@ function buildWorld({ keep = false } = {}) {
   consume(app.world.state());
 
   app.view2d.setObstacles(app.learned);
-  refreshEnergy();
   app.view3d?.setMap(map, app.learned, app.zScale);
   $('plan-readout').hidden = true;
 
@@ -84,7 +82,7 @@ function buildWorld({ keep = false } = {}) {
   $('in-slope').value = slope;
   $('out-slope').textContent = `${slope}°`;
   $('in-batt').max = map.capacity_wh;
-  $('slope-note').textContent = `이 한계로 막히는 이동 ${countBlockedMoves()}곳 (지도 기본값 ${map.max_slope_deg}°). 바꾸면 기지에서 다시 출발합니다.`;
+  $('slope-note').textContent = `이 한계로 막히는 이동 ${countBlockedMoves()}곳 (지도 기본값 ${map.max_slope_deg}°).\n바꾸면 기지에서 다시 출발합니다.`;
 }
 
 /** Moves between two free neighbour cells that the slope limit forbids. */
@@ -99,10 +97,6 @@ function countBlockedMoves() {
     }
   }
   return blocked;
-}
-
-function refreshEnergy() {
-  app.view2d.setEnergy(app.energyOn ? app.world.returnEnergy() : null);
 }
 
 async function loadMap(id) {
@@ -123,7 +117,6 @@ function consume(s) {
   if (s.new_obstacles.length) {
     app.learned.push(...s.new_obstacles);
     app.view2d.setObstacles(app.learned);
-    refreshEnergy();
     app.view3d?.setObstacles(app.learned);
   }
   if (old) {
@@ -360,10 +353,6 @@ function setupControls() {
     app.zScale = Number(ev.target.value);
     $('out-z').textContent = `${app.zScale}×`;
     app.view3d?.setZScale(app.zScale);
-  });
-  $('in-energy').addEventListener('change', (ev) => {
-    app.energyOn = ev.target.checked;
-    refreshEnergy();
   });
 }
 
