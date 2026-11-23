@@ -139,6 +139,11 @@ code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size:
 .log li.empty { color: var(--muted); }
 
 .foot { margin-top: 48px; padding-top: 16px; padding-bottom: 32px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+.foot p { margin: 0; }
+.foot i { font-style: normal; color: var(--accent); opacity: 0.6; margin: 0 8px; }
+.sources { display: flex; flex-wrap: wrap; align-items: baseline; row-gap: 2px; }
+.sources b { color: var(--text); font-weight: 600; margin-right: 4px; }
+.notice { font-size: 0.9em; opacity: 0.75; margin-top: 2px !important; }
 
 /* Wide screens: the whole dashboard fits the window, no page scroll.
    The map takes whatever height is left; the record list scrolls inside its card. */
@@ -154,8 +159,7 @@ code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size:
   .panel > .card { flex: none; }
   .panel > .card:last-child { flex: 1 1 auto; min-height: 140px; display: flex; flex-direction: column; }
   .log { flex: 1 1 auto; min-height: 0; max-height: none; }
-  .foot { margin-top: 8px; padding-top: 6px; padding-bottom: 8px; font-size: 11px; line-height: 1.45; }
-  .foot p { margin: 0; }
+  .foot { margin-top: 8px; padding-top: 6px; padding-bottom: 8px; font-size: 12px; line-height: 1.5; }
 }
 
 @media (max-width: 960px) {
