@@ -1,34 +1,21 @@
 :root {
-  --bg: #f4f5f7;
-  --card: #ffffff;
-  --text: #1b1f24;
-  --muted: #5b6470;
-  --line: #dde1e6;
-  --accent: #1e78dc;
-  --accent-text: #ffffff;
-  --soft: #eef1f5;
-  --warn: #b3261e;
-  --warn-bg: #fdecea;
-  --ok: #1a7f37;
-  --map-bg: #1c1f24;
+  /* Always dark, like a ground control station; orange is the one accent colour. */
+  --bg: #0b0d10;
+  --card: #14171c;
+  --text: #e8ebef;
+  --muted: #8d96a3;
+  --line: #262b33;
+  --accent: #ff8a1f;
+  --accent-text: #120a02;
+  --soft: #1d2128;
+  --raised: #2a3039;
+  --warn: #ff8a80;
+  --warn-bg: #3a1f1d;
+  --ok: #3fb950;
+  --caution: #e3b341;
+  --map-bg: #000000;
   --radius: 10px;
-  color-scheme: light dark;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f1216;
-    --card: #181c22;
-    --text: #e6e9ee;
-    --muted: #9aa4b1;
-    --line: #2b313a;
-    --accent: #4c9bf0;
-    --accent-text: #0b0e12;
-    --soft: #222831;
-    --warn: #ff8a80;
-    --warn-bg: #3a1f1d;
-    --ok: #56d364;
-    --map-bg: #0b0d10;
-  }
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -54,7 +41,7 @@ code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size:
 /* header */
 .top { padding: 14px 0 10px; }
 .top-row { display: flex; gap: 20px; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; }
-.eyebrow { font-size: 12px; letter-spacing: 0.08em; color: var(--muted); margin: 0; font-weight: 600; }
+.eyebrow { font-size: 12px; letter-spacing: 0.08em; color: var(--accent); margin: 0; font-weight: 600; }
 .top h1 { margin: 0; }
 .top-links { display: flex; gap: 8px; flex-wrap: wrap; }
 
@@ -65,8 +52,9 @@ code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size:
   padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line);
   background: var(--card); color: var(--text); text-decoration: none; cursor: pointer;
 }
-.btn:hover { border-color: var(--accent); }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.btn.primary:hover { background: #ff9d45; color: var(--accent-text); }
 .btn.ghost { background: transparent; }
 .btn:focus-visible, .seg button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .link { font: inherit; font-size: 13px; background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font-weight: 500; }
@@ -76,7 +64,8 @@ code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size:
   font: inherit; font-size: 13.5px; font-weight: 600; padding: 5px 11px; border: 0; border-radius: 6px;
   background: transparent; color: var(--muted); cursor: pointer;
 }
-.seg button.on { background: var(--card); color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18); }
+.seg button:hover { color: var(--text); }
+.seg button.on { background: var(--raised); color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
 
 /* demo layout */
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
@@ -104,7 +93,7 @@ code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size:
 .label { font-size: 13px; color: var(--muted); font-weight: 600; }
 .hint { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
 .readout { font-size: 13.5px; margin: 6px 0 0; font-variant-numeric: tabular-nums; }
-#plan-readout { background: var(--soft); border-left: 3px solid rgb(255, 140, 0); padding: 6px 10px; border-radius: 4px; }
+#plan-readout { background: var(--soft); border-left: 3px solid var(--accent); padding: 6px 10px; border-radius: 4px; }
 
 .legend { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 10px 0 0; margin: 10px 0 0; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
 .legend li { display: inline-flex; align-items: center; gap: 6px; }
@@ -117,12 +106,12 @@ code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size:
 .status-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13.5px; }
 .badge { font-weight: 700; font-size: 13.5px; padding: 3px 10px; border-radius: 999px; background: var(--soft); }
 .badge[data-state="순찰 중"] { background: var(--accent); color: var(--accent-text); }
-.badge[data-state="재계획 중"] { background: #d97706; color: #fff; }
+.badge[data-state="재계획 중"] { background: var(--caution); color: #1a1405; }
 .badge[data-state="복귀 중"] { background: #b3261e; color: #fff; }
-.badge[data-state="정지"] { background: #57606a; color: #fff; }
+.badge[data-state="정지"] { background: #4b525c; color: #fff; }
 .battery { position: relative; height: 14px; border-radius: 7px; background: var(--soft); overflow: hidden; }
 .battery-fill { height: 100%; width: 0; background: var(--ok); border-radius: 7px; transition: width 0.15s linear; }
-.battery-fill.low { background: #d97706; }
+.battery-fill.low { background: var(--caution); }
 .battery-fill.critical { background: #b3261e; }
 .battery-mark { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text); opacity: 0.75; left: 0; }
 .battery-text { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin: 5px 0 10px; font-variant-numeric: tabular-nums; }
