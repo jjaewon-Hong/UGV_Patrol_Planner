@@ -52,11 +52,10 @@ code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size:
 [hidden] { display: none !important; }
 
 /* header */
-.top { padding: 26px 0 18px; }
+.top { padding: 14px 0 10px; }
 .top-row { display: flex; gap: 20px; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; }
 .eyebrow { font-size: 12px; letter-spacing: 0.08em; color: var(--muted); margin: 0; font-weight: 600; }
-.lead { max-width: 62ch; color: var(--muted); margin: 0; }
-.lead strong { color: var(--text); }
+.top h1 { margin: 0; }
 .top-links { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* buttons */
@@ -83,8 +82,8 @@ code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size:
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
 .demo-grid { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 14px; align-items: start; }
 .panel { display: grid; gap: 12px; }
-.toolbar { display: flex; gap: 10px; justify-content: space-between; flex-wrap: wrap; margin-bottom: 8px; }
-.map-about { color: var(--muted); font-size: 13.5px; margin: 0 0 10px; }
+.toolbar { display: flex; gap: 6px 12px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.map-about { color: var(--muted); font-size: 13px; margin: 0; flex: 1 1 260px; }
 
 .canvas-wrap {
   position: relative; background: var(--map-bg); border-radius: 8px; overflow: hidden;
@@ -135,10 +134,6 @@ code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size:
 .row + .row { margin-top: 10px; }
 .row .btn { flex: 1 1 auto; }
 
-.quick { display: grid; gap: 8px; }
-.quick .btn { flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; }
-.quick small { font-weight: 400; color: var(--muted); font-size: 12.5px; }
-
 .slider { display: block; margin-bottom: 10px; }
 .slider span { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; }
 .slider output { font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -155,6 +150,24 @@ code { background: var(--soft); padding: 1px 5px; border-radius: 4px; font-size:
 .log li.empty { color: var(--muted); }
 
 .foot { margin-top: 48px; padding-top: 16px; padding-bottom: 32px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+
+/* Wide screens: the whole dashboard fits the window, no page scroll.
+   The map takes whatever height is left; the record list scrolls inside its card. */
+@media (min-width: 961px) and (min-height: 640px) {
+  body { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+  main.wrap { flex: 1 1 auto; min-height: 0; width: 100%; }
+  #demo, .demo-grid { height: 100%; }
+  .demo-grid { align-items: stretch; }
+  .stage { display: flex; flex-direction: column; min-height: 0; }
+  .canvas-box { flex: 1 1 auto; min-height: 200px; container-type: size; }
+  .canvas-wrap { width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); max-width: none; max-height: none; aspect-ratio: auto; }
+  .panel { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+  .panel > .card { flex: none; }
+  .panel > .card:last-child { flex: 1 1 auto; min-height: 140px; display: flex; flex-direction: column; }
+  .log { flex: 1 1 auto; min-height: 0; max-height: none; }
+  .foot { margin-top: 8px; padding-top: 6px; padding-bottom: 8px; font-size: 11px; line-height: 1.45; }
+  .foot p { margin: 0; }
+}
 
 @media (max-width: 960px) {
   .demo-grid { grid-template-columns: 1fr; }

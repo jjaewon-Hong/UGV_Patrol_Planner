@@ -13,8 +13,6 @@
       <div>
         <p class="eyebrow">ROS 2 · C++17 · WebAssembly</p>
         <h1>UGV 순찰 경로 계획 제어기</h1>
-        <p class="lead">고도가 있는 지형에서 무인 지상 차량의 순찰 경로를 계획합니다. 아래 지도는 영상이 아니라,
-          시험을 통과한 C++ 핵심 코드가 <strong>지금 이 브라우저에서</strong> 돌고 있는 것입니다.</p>
       </div>
       <nav class="top-links" aria-label="바로가기">
         <a class="btn" href="https://github.com/jjaewon-Hong/UGV_Patrol_Planner">GitHub 저장소</a>
@@ -31,18 +29,20 @@
               <button type="button" data-view="2d" class="on">2D</button>
               <button type="button" data-view="3d">3D</button>
             </div>
+            <p class="map-about" id="map-about">지도를 불러오는 중입니다…</p>
           </div>
-          <p class="map-about" id="map-about">지도를 불러오는 중입니다…</p>
 
-          <div class="canvas-wrap" id="canvas-wrap">
-            <canvas id="map2d" width="800" height="800" aria-label="순찰 지도"></canvas>
-            <div id="map3d" hidden></div>
-            <div id="loading" class="overlay-msg">WebAssembly 모듈을 불러오는 중…</div>
-            <div id="fallback" class="overlay-msg" hidden>
-              <p><strong>이 브라우저에서는 데모를 실행할 수 없습니다.</strong></p>
-              <p id="fallback-reason"></p>
-              <p>대신 ROS 2에서 실행한 화면입니다.</p>
-              <img src="img/run_2d.png" alt="ROS 2에서 실행한 2D 화면">
+          <div class="canvas-box">
+            <div class="canvas-wrap" id="canvas-wrap">
+              <canvas id="map2d" width="800" height="800" aria-label="순찰 지도"></canvas>
+              <div id="map3d" hidden></div>
+              <div id="loading" class="overlay-msg">WebAssembly 모듈을 불러오는 중…</div>
+              <div id="fallback" class="overlay-msg" hidden>
+                <p><strong>이 브라우저에서는 데모를 실행할 수 없습니다.</strong></p>
+                <p id="fallback-reason"></p>
+                <p>대신 ROS 2에서 실행한 화면입니다.</p>
+                <img src="img/run_2d.png" alt="ROS 2에서 실행한 2D 화면">
+              </div>
             </div>
           </div>
 
@@ -104,15 +104,6 @@
                 <button type="button" data-speed="5" class="on">5×</button>
                 <button type="button" data-speed="20">20×</button>
               </div>
-            </div>
-          </section>
-
-          <section class="card" aria-label="한 번 눌러 보기">
-            <h2>한 번 눌러 보기</h2>
-            <div class="quick">
-              <button type="button" class="btn" id="q-obstacle">경로 앞에 장애물 놓기<small>막히면 바로 새 경로</small></button>
-              <button type="button" class="btn" id="q-battery">배터리를 부족하게<small>못 돌아오기 전에 복귀</small></button>
-              <button type="button" class="btn" id="q-bad">잘못된 명령 보내기<small>멈추지 않고 경보</small></button>
             </div>
           </section>
 

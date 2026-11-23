@@ -324,33 +324,6 @@ async function setView(view) {
   }
 }
 
-function quickObstacle() {
-  const s = app.state;
-  const at = s.path.findIndex((c) => sameCell(c, s.pos));
-  if (at < 0 || at + 5 >= s.path.length) { log('지금은 막을 경로가 없습니다. 순찰 중에 눌러 주세요.'); return; }
-  const [r, c] = s.path[at + 4], [nr, nc] = s.path[at + 5];
-  const side = nr !== r ? [[0, -1], [0, 1]] : [[-1, 0], [1, 0]];  // wall across the direction of travel
-  const cells = [[r, c], ...side.map(([dr, dc]) => [r + dr, c + dc])]
-    .filter(([a, b]) => a >= 0 && b >= 0 && a < app.map.n && b < app.map.n);
-  log(`경로 앞 (${r}, ${c}) 에 장애물 ${cells.length}칸 추가`);
-  for (const cell of cells) addObstacle(cell);
-}
-
-function quickBattery() {
-  const s = app.state;
-  if (s.return_wh === null) { log('여기서는 기지로 갈 길이 없습니다.'); return; }
-  const wh = Math.max(s.return_wh * app.map.return_margin + 0.6, 1);
-  app.world.setBattery(wh);
-  log(`배터리를 ${wh.toFixed(1)} Wh로 낮춤 (복귀 기준 ${(s.return_wh * app.map.return_margin).toFixed(1)} Wh)`);
-}
-
-function quickBadInput() {
-  log('잘못된 입력 4개 전송: "go", "add 999 999", "remove P9", 지도 밖 장애물 (500, 500)');
-  for (const text of ['go', 'add 999 999', 'remove P9']) app.world.command(text);
-  app.world.reportObstacle(500, 500);
-  consume(app.world.state());
-}
-
 function setupControls() {
   segmented('view-tabs', 'view', setView);
   segmented('speed-tabs', 'speed', (v) => { app.speed = Number(v); });
@@ -366,9 +339,6 @@ function setupControls() {
   $('btn-stop').addEventListener('click', () => { app.world.command('stop'); consume(app.world.state()); });
   $('btn-reset').addEventListener('click', () => buildWorld());
   $('btn-clear-log').addEventListener('click', clearLog);
-  $('q-obstacle').addEventListener('click', quickObstacle);
-  $('q-battery').addEventListener('click', quickBattery);
-  $('q-bad').addEventListener('click', quickBadInput);
 
   const batt = $('in-batt');
   batt.addEventListener('pointerdown', () => { app.draggingBattery = true; });
