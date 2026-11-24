@@ -117,14 +117,27 @@ class MissionManager:
         self.pos = cell
         if self.state not in (S.PATROLLING, S.RETURNING) or not self.path:
             return []
+        out: list[Output] = []
         if cell in self.path[self.idx:]:
             self.idx = self.path.index(cell, self.idx)
+        else:
+            # Off the path: the drive carried out a move sent before the last re-plan, so the new
+            # path starts one cell behind. Plan again from the real position; otherwise the next
+            # cell is not adjacent, the drive ignores it and the patrol stalls.
+            if self.state == S.RETURNING:
+                return self._go_home()
+            new_path = self.planner.plan(cell, self.target.cell)
+            if new_path is None:
+                return [Alarm(f'경로 없음: {self.target.pid}')] + \
+                    self._start_next_target(now, exclude={self.target.pid})
+            self.path, self.idx = new_path, 0
+            out.append(PathUpdate(self.path))
         if cell == self.path[-1]:
             if self.state == S.RETURNING:
-                return self._set_state(S.IDLE, note='복귀 완료')
+                return out + self._set_state(S.IDLE, note='복귀 완료')
             self.scheduler.mark_visited(self.target.pid, now)
-            return self._start_next_target(now)
-        return self._step()
+            return out + self._start_next_target(now)
+        return out + self._step()
 
     def on_obstacles(self, cells: Iterable[Cell], now: float) -> list[Output]:
         """New obstacles: update the map and re-plan if the current path is blocked (FR-11, FR-12)."""

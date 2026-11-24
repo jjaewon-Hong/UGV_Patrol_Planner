@@ -104,6 +104,24 @@ def test_ut_u5_04_obstacle_on_and_off_path():
     assert (0, 3) not in new_path and new_path[0] == (0, 1) and new_path[-1] == (0, 6)
 
 
+def test_ut_u5_09_rejoin_after_stale_move():
+    """The UGV carried out the move sent before a re-plan, so it is not on the new path.
+    The controller must plan again from where the UGV really is (a non-adjacent next cell would
+    be ignored by the drive and the patrol would stall)."""
+    mm = world()
+    ready(mm, [(0, 6)])
+    mm.on_command(Command('start'), 1)
+    assert of(mm.on_pose((0, 1), 2), NextCell)[0].cell == (0, 2)   # drive will move to (0, 2)
+    outs = mm.on_obstacles([(0, 3), (1, 2)], 3)                    # re-planned from (0, 1)
+    assert (0, 2) not in of(outs, PathUpdate)[0].path
+    outs = mm.on_pose((0, 2), 4)                                   # but the UGV is already at (0, 2)
+    new_path = of(outs, PathUpdate)[0].path
+    assert new_path[0] == (0, 2) and new_path[-1] == (0, 6)
+    nxt = of(outs, NextCell)[0].cell
+    assert abs(nxt[0] - 0) + abs(nxt[1] - 2) == 1                  # a move the drive can carry out
+    assert mm.state == S.PATROLLING
+
+
 def test_ut_u5_05_unreachable_target():
     mm = world()
     ready(mm, [(5, 5), (8, 8)])

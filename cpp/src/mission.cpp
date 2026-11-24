@@ -120,14 +120,37 @@ Outputs MissionManager::on_battery(double wh) {
 Outputs MissionManager::on_pose(Cell cell, double now) {
   pos_ = cell;
   if ((state_ != S::Patrolling && state_ != S::Returning) || path_.empty()) return {};
+  Outputs out;
+  auto append = [&out](Outputs more) { out.insert(out.end(), more.begin(), more.end()); };
   const auto it = std::find(path_.begin() + static_cast<long>(idx_), path_.end(), cell);
-  if (it != path_.end()) idx_ = static_cast<size_t>(it - path_.begin());
-  if (cell == path_.back()) {
-    if (state_ == S::Returning) return set_state(S::Idle, "복귀 완료");
-    sched_.mark_visited(target_->pid, now);
-    return start_next_target(now);
+  if (it != path_.end()) {
+    idx_ = static_cast<size_t>(it - path_.begin());
+  } else {
+    // Off the path: the drive carried out a move sent before the last re-plan, so the new path
+    // starts one cell behind. Plan again from the real position; otherwise the next cell is not
+    // adjacent, the drive ignores it and the patrol stalls.
+    if (state_ == S::Returning) return go_home();
+    auto new_path = planner_.plan(cell, target_->cell);
+    if (!new_path) {
+      out.push_back(Alarm{"경로 없음: " + target_->pid});
+      append(start_next_target(now, {target_->pid}));
+      return out;
+    }
+    path_ = std::move(*new_path);
+    idx_ = 0;
+    out.push_back(PathUpdate{path_});
   }
-  return step();
+  if (cell == path_.back()) {
+    if (state_ == S::Returning) {
+      append(set_state(S::Idle, "복귀 완료"));
+      return out;
+    }
+    sched_.mark_visited(target_->pid, now);
+    append(start_next_target(now));
+    return out;
+  }
+  append(step());
+  return out;
 }
 
 Outputs MissionManager::on_obstacles(const std::vector<Cell>& cells, double now) {

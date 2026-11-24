@@ -2,6 +2,8 @@
 // test/test_u5_manager.py (same cases, same expected results).
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cstdlib>
 #include <map>
 #include <memory>
 
@@ -141,6 +143,25 @@ TEST(Mission, ObstacleOnAndOffPath) {
   EXPECT_EQ(std::find(p.begin(), p.end(), Cell{0, 3}), p.end());
   EXPECT_EQ(p.front(), (Cell{0, 1}));
   EXPECT_EQ(p.back(), (Cell{0, 6}));
+}
+
+// The drive carried out the move sent before a re-plan, so the UGV is not on the new path:
+// plan again from the real position instead of sending a cell the drive would ignore.
+TEST(Mission, RejoinsAfterStaleMove) {
+  World w;
+  w.ready({{0, 6}});
+  w.start();
+  EXPECT_EQ(of<NextCell>(w.mm.on_pose({0, 1}, 2))[0].cell, (Cell{0, 2}));
+  const auto replan = of<PathUpdate>(w.mm.on_obstacles({{0, 3}, {1, 2}}, 3))[0].path;
+  EXPECT_EQ(std::find(replan.begin(), replan.end(), Cell{0, 2}), replan.end());
+  const auto outs = w.mm.on_pose({0, 2}, 4);
+  ASSERT_EQ(of<PathUpdate>(outs).size(), 1u);
+  const auto p = of<PathUpdate>(outs)[0].path;
+  EXPECT_EQ(p.front(), (Cell{0, 2}));
+  EXPECT_EQ(p.back(), (Cell{0, 6}));
+  const Cell nxt = of<NextCell>(outs)[0].cell;
+  EXPECT_EQ(std::abs(nxt.r - 0) + std::abs(nxt.c - 2), 1);
+  EXPECT_EQ(w.mm.state(), S::Patrolling);
 }
 
 TEST(Mission, UnreachableTargetIsSkipped) {
