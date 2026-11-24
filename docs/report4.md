@@ -533,33 +533,9 @@ def on_obstacles(self, cells: Iterable[Cell], now: float) -> list[Output]:
 
 위 메서드의 호출 순서(U1 → U4 → U2)가 순차 다이어그램(그림 8)의 메시지 순서와 같다. L4 노드는 반환된 목록을 형(type)에 따라 토픽으로 바꾸기만 한다.
 
-```python
-def publish(self, outputs):                     # nodes/controller_node.py (L4)
-    for o in outputs:
-        if isinstance(o, NextCell):   self.pub_next.publish(to_point(o.cell))
-        elif isinstance(o, PathUpdate): ...      # nav_msgs/Path로 변환해 /controller/path
-        elif isinstance(o, Status):   self.pub_status.publish(String(data=json.dumps(o.info, ensure_ascii=False)))
-        elif isinstance(o, Alarm):    self.pub_alarm.publish(String(data=o.text))
-```
-
 ### 2.6 C++ 객체 설계와 설계 대비 변경 사항
 
 C++ 구현은 같은 클래스 설계를 언어의 특성에 맞게 옮겼다. Python의 출력 객체 목록은 `std::variant`로, None은 `std::optional`로, 칸은 비교 연산자를 가진 `struct Cell`로 표현했다.
-
-```cpp
-using Output = std::variant<NextCell, PathUpdate, Status, Alarm>;   // cpp/include/ugv_core/mission.hpp
-using Outputs = std::vector<Output>;
-
-class MissionManager {
- public:
-  MissionManager(TerrainMap& terrain, AStarPlanner& planner, PatrolScheduler& scheduler, ReturnEnergyMap& energy);
-  Outputs on_command(const Command& cmd, double now);
-  Outputs on_pose(Cell cell, double now);
-  Outputs on_obstacles(const std::vector<Cell>& cells, double now);
-  Outputs on_battery(double wh);
-  ...
-};
-```
 
 | 변경 | 설계(과제3) | 구현 | 이유 / 영향 |
 |---|---|---|---|
@@ -622,21 +598,12 @@ TC-R-01\~05는 같은 시험을 Python 제어기와 C++ 제어기로 각각 실�
 | TC-I-07 | U4 `should_return` 분기 (UT-U4-03, 04) | 잔량 = 1.2R, 1.2R + 0.01 / 다음 칸이 10 m 오르막 | True, False / 현재 칸만 보면 False, 다음 칸까지 보면 True | 일치 | 합격 |
 | TC-I-08 | U5 `parse_command`·`on_command` 오류 분기 (UT-U5-08) | `add 3 x`, `go`, `remove`, 빈 문자열 / 범위 밖 add, 없는 ID remove, 지점 0개 start | ValueError / 각각 경보, 상태 대기 유지, 예외 없음 | 일치 | 합격 |
 
-Test Case는 시험 코드로 작성해 자동 실행한다. 예를 들어 TC-I-01은 경계값 세 개를 매개변수로 주고, TC-I-07은 "멈춰 있으면 괜찮지만 이동하면 부족해지는" 상황을 만든다.
+Test Case는 시험 코드로 작성해 자동 실행한다. 예를 들어 TC-I-01은 경계값 세 개를 매개변수로 준다.
 
 ```python
 @pytest.mark.parametrize('deg, ok', [(29.9, True), (30.0, True), (30.1, False)])
 def test_ut_u1_02_slope_boundary(deg, ok):                       # TC-I-01
     assert slope_map(deg).is_traversable((0, 0), (0, 1)) is ok
-
-def test_ut_u4_04_look_ahead_before_moving_away():               # TC-I-07
-    elev = np.zeros((3, 3))
-    elev[0, 2] = 10.0                              # (0,1) → (0,2)는 기지에서 멀어지는 10 m 오르막
-    m = monitor(elev)
-    pos, nxt = (0, 1), (0, 2)
-    battery = CFG.return_margin * m.return_energy(pos) + 0.5
-    assert not m.should_return(pos, battery)       # 그 자리에 있으면 괜찮지만
-    assert m.should_return(pos, battery, nxt)      # 이 이동 뒤에는 부족 → 이동 전에 복귀
 ```
 
 ### 3.5 시험 결과와 발견한 결함
@@ -683,7 +650,7 @@ FR 22개와 NFR 8개가 모두 설계 요소, 코드, 하나 이상의 Test Case
 
 ## 5. 결과 요약과 향후 과제
 
-- **유닛(객체) 설계:** 유닛 5개(U1\~U5)를 Python과 C++17 클래스로 구현했고, 계층별 폴더 구성과 의존 방향 규칙으로 설계 구조가 코드에 그대로 남았다.
-- **Test Case:** 요구사항 7개, 설계 6개, 구현 8개를 작성해 모두 합격했고, 자동 시험(pytest 83개, GoogleTest 37개, 시나리오 S1\~S5 × 2)은 push마다 CI에서 다시 돈다.
-- **배운 점:** 정상 흐름만 본 LOC 추정은 예외 처리가 많은 임무 관리에서 3.8배 빗나갔고, 결함은 정보 은닉 덕분에 내부만 고쳐 해결했다.
+- **유닛(객체) 설계:** 유닛 5개(U1\~U5)를 Python·C++17 클래스로 구현했고, 폴더 구성과 의존 방향 규칙으로 계층을 지켰다.
+- **Test Case:** 요구사항 7개, 설계 6개, 구현 8개가 모두 합격했고, 자동 시험(3.5절)은 push마다 CI에서 다시 돈다.
+- **배운 점:** 정상 흐름만 본 LOC 추정은 임무 관리에서 3.8배 빗나갔고, 결함은 정보 은닉 덕분에 내부만 고쳐 해결했다.
 - **향후 과제:** D\* Lite로 재계획 효율화, 5 m 고도 자료 적용, 캠퍼스 데이터로 인식 모델 미세 조정, Gazebo 연동.
