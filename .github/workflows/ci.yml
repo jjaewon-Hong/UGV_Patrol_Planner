@@ -9,10 +9,21 @@ on:
 jobs:
   test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Usually ~7 min. The apt step can crawl when the Ubuntu mirror is slow (one run was cancelled
+    # at 30 min while still downloading), so leave headroom and cache the image layers below.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
       - name: Build Docker image (ROS 2 Jazzy + package + C++ core)
-        run: docker build -f scripts/Dockerfile -t ugv-patrol .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: scripts/Dockerfile
+          tags: ugv-patrol
+          load: true
+          # Reuse the apt layer from earlier runs: it only changes when the Dockerfile does.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - name: Run all tests (Python, C++, C++ vs Python, scenarios S1~S5)
         run: docker run --rm ugv-patrol
