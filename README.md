@@ -55,7 +55,7 @@ bash scripts/serve_web.sh          # http://localhost:8000
 
 | 항목 | 결과 |
 |---|---|
-| 단위 시험 | Python 82개, C++(GoogleTest) 36개 통과 |
+| 단위 시험 | Python 83개, C++(GoogleTest) 37개 통과 |
 | 시나리오 시험 (실제 ROS 2 실행) | S1 정상 순찰, S2 장애물, S3 배터리 부족, S4 비정상 입력, S5 캠퍼스 순찰. 두 제어기 모두 통과 |
 | 캠퍼스 순찰 (S5) | 깃발 3개 모두 방문, 장애물 진입 0회, 실제 이동 중 최대 경사 13.5° (한계 15°) |
 | 장애물 인식 (직접 라벨 기준, 목표 0.6) | 건물+나무 IoU **0.63** (건물 0.75, 나무 0.56) |
@@ -99,3 +99,4 @@ bash scripts/serve_web.sh          # http://localhost:8000
 - [docs/report1.md](docs/report1.md) — 프로젝트 관리 (범위, 규모 산정, WBS)
 - [docs/report2.md](docs/report2.md) — 요구사항 (FR·NFR, 검증 방법)
 - [docs/report3.md](docs/report3.md) — 설계 (아키텍처, UML, 유닛 상세 설계)
+- [docs/report4.md](docs/report4.md) — 구현 및 시험 (코드 구성, 유닛 코드, 요구사항·설계·구현 대상 Test Case)
